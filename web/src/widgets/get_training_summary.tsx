@@ -26,6 +26,19 @@ export default function TrainingSummary() {
 
   const { period, stats, runs } = toolInfo.output as any;
 
+  // Debug: log what we're getting
+  console.log("Widget data:", { period, stats, runs });
+
+  // Safety check
+  if (!stats || !period) {
+    return (
+      <div style={{ padding: "32px", textAlign: "center" }}>
+        <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
+        <p style={{ margin: 0, color: "#ef4444", fontSize: "14px" }}>No training data available</p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ 
       maxWidth: "640px",
@@ -33,12 +46,11 @@ export default function TrainingSummary() {
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif",
     }}>
       <div style={{ 
-        background: "rgba(255, 255, 255, 0.02)",
-        backdropFilter: "blur(20px)",
+        background: "white",
         borderRadius: "24px", 
         padding: "32px",
-        border: "1px solid rgba(255, 255, 255, 0.06)",
-        boxShadow: "0 20px 60px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+        border: "1px solid #e5e7eb",
+        boxShadow: "0 20px 60px rgba(0, 0, 0, 0.08)",
         position: "relative" as const,
         overflow: "hidden" as const
       }}>
@@ -94,7 +106,7 @@ export default function TrainingSummary() {
           ].map((stat, i) => (
             <div key={i} style={{ 
               padding: "24px", 
-              background: "rgba(255, 255, 255, 0.4)",
+              background: "#f8f9fa",
               backdropFilter: "blur(10px)",
               borderRadius: "16px",
               border: "1px solid rgba(255, 255, 255, 0.2)",
@@ -151,7 +163,7 @@ export default function TrainingSummary() {
                   key={i}
                   style={{
                     padding: "16px 20px",
-                    background: "rgba(255, 255, 255, 0.3)",
+                    background: "#f3f4f6",
                     backdropFilter: "blur(10px)",
                     borderRadius: "12px",
                     display: "flex",
