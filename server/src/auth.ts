@@ -51,17 +51,19 @@ export async function getAuth(extra: Extra): Promise<StravaAuth | null> {
  * Returns auth error response for unauthenticated requests
  */
 export function authErrorResponse() {
+  const serverUrl = process.env.MCP_SERVER_URL || "http://localhost:3000";
+  
   return {
     content: [
       {
         type: "text" as const,
-        text: "Please connect your Strava account to use this feature.",
+        text: "Authentication required. Please connect your Strava account to access your training data.",
       },
     ],
     isError: true,
     _meta: {
       "mcp/www_authenticate": [
-        `Bearer resource_metadata="${process.env.MCP_SERVER_URL}/.well-known/oauth-protected-resource"`,
+        `Bearer resource_metadata="${serverUrl}/.well-known/oauth-protected-resource"`,
       ],
     },
   };
