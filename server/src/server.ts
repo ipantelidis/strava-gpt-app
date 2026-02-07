@@ -23,18 +23,23 @@ server.registerWidget(
     description: "Get a summary of recent training with insights",
   },
   {
-    description:
-      "Analyze recent running activities and provide coaching insights",
+    description: "Analyze recent running activities and provide coaching insights",
     inputSchema: {
       days: z
         .number()
         .optional()
         .default(7)
         .describe("Number of days to analyze (default: 7)"),
+      token: z
+        .string()
+        .optional()
+        .describe("Strava access token (optional, for testing)"),
     },
   },
-  async ({ days }, extra) => {
-    const auth = await getAuth(extra);
+  async ({ days, token }, extra) => {
+    // Try manual token first, then OAuth
+    let auth = token ? { userId: "manual", accessToken: token } : await getAuth(extra);
+    
     if (!auth) {
       return authErrorResponse();
     }
@@ -128,10 +133,16 @@ server.registerWidget(
         .string()
         .optional()
         .describe("Start date of current week (ISO format, defaults to current week)"),
+      token: z
+        .string()
+        .optional()
+        .describe("Strava access token (optional, for testing)"),
     },
   },
-  async ({ currentWeekStart }, extra) => {
-    const auth = await getAuth(extra);
+  async ({ currentWeekStart, token }, extra) => {
+    // Try manual token first, then OAuth
+    let auth = token ? { userId: "manual", accessToken: token } : await getAuth(extra);
+    
     if (!auth) {
       return authErrorResponse();
     }
@@ -269,11 +280,17 @@ server.registerWidget(
         .string()
         .optional()
         .describe('Optional context like "recovery", "intensity", etc.'),
+      token: z
+        .string()
+        .optional()
+        .describe("Strava access token (optional, for testing)"),
     },
   },
-  async ({ context: _context }, extra) => {
+  async ({ context: _context, token }, extra) => {
     // Context parameter reserved for future use (e.g., specific advice types)
-    const auth = await getAuth(extra);
+    // Try manual token first, then OAuth
+    let auth = token ? { userId: "manual", accessToken: token } : await getAuth(extra);
+    
     if (!auth) {
       return authErrorResponse();
     }
