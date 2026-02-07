@@ -1212,6 +1212,245 @@ server.registerWidget(
   },
 );
 
+// Visualization Widget: Render Comparison Card
+server.registerWidget(
+  "render_comparison_card",
+  {
+    description: "Render a side-by-side comparison card for two runs with delta indicators and trend arrows. This is a visualization-only widget that accepts structured comparison data.",
+  },
+  {
+    description: "Display a visual comparison of two runs showing metrics, deltas, and trends. Use this after fetching comparison data from get_run_comparison tool.",
+    inputSchema: {
+      data: z.object({
+        run1: z.object({
+          id: z.number(),
+          name: z.string(),
+          date: z.string(),
+          distance: z.number(),
+          pace: z.string(),
+          duration: z.number(),
+          elevation: z.number(),
+          heartRate: z.number().optional(),
+        }),
+        run2: z.object({
+          id: z.number(),
+          name: z.string(),
+          date: z.string(),
+          distance: z.number(),
+          pace: z.string(),
+          duration: z.number(),
+          elevation: z.number(),
+          heartRate: z.number().optional(),
+        }),
+        deltas: z.object({
+          distance: z.number().describe("Percentage change in distance"),
+          pace: z.number().describe("Change in pace (seconds per km)"),
+          elevation: z.number().describe("Change in elevation (meters)"),
+          heartRate: z.number().optional().describe("Change in heart rate (bpm)"),
+        }),
+        trend: z.enum(["improving", "declining", "stable"]),
+      }).describe("Run comparison data from get_run_comparison tool"),
+      config: z.object({
+        title: z.string().optional().describe("Custom title for the comparison card"),
+        showTrendBadge: z.boolean().optional().describe("Whether to show the trend badge (default: true)"),
+      }).optional().describe("Optional configuration for the comparison card"),
+    },
+  },
+  async ({ data, config }) => {
+    return {
+      structuredContent: {
+        data,
+        config,
+      },
+      content: [
+        {
+          type: "text",
+          text: `Comparison: ${data.run1.name} vs ${data.run2.name}. Trend: ${data.trend}`,
+        },
+      ],
+      isError: false,
+    };
+  },
+);
+
+// Visualization Widget: Render Line Chart
+server.registerWidget(
+  "render_line_chart",
+  {
+    description: "Render a line chart for time series data with support for multiple series overlays. This is a visualization-only widget that accepts structured data and configuration.",
+  },
+  {
+    description: "Display time series data as a line chart with configurable axes, colors, and multiple series support. Use this to visualize trends over time such as pace progression, distance over time, or heart rate trends.",
+    inputSchema: {
+      data: z.array(z.object({
+        x: z.union([z.string(), z.number()]).describe("X-axis value (date, time, or numeric)"),
+        y: z.number().describe("Y-axis value (primary series)"),
+        series: z.record(z.string(), z.number()).optional().describe("Additional series data as key-value pairs"),
+      })).describe("Array of data points with x, y coordinates and optional additional series"),
+      config: z.object({
+        title: z.string().optional().describe("Chart title"),
+        xAxis: z.object({
+          label: z.string().describe("X-axis label"),
+          unit: z.string().optional().describe("X-axis unit (e.g., 'date', 'km')"),
+        }).optional().describe("X-axis configuration"),
+        yAxis: z.object({
+          label: z.string().describe("Y-axis label"),
+          unit: z.string().optional().describe("Y-axis unit (e.g., 'min/km', 'm', 'bpm')"),
+        }).optional().describe("Y-axis configuration"),
+        colors: z.array(z.string()).optional().describe("Array of colors for series (uses design system gradients by default)"),
+        showLegend: z.boolean().optional().describe("Whether to show legend (default: true)"),
+        seriesNames: z.array(z.string()).optional().describe("Names for each series (for legend)"),
+      }).optional().describe("Optional chart configuration"),
+    },
+  },
+  async ({ data, config }) => {
+    return {
+      structuredContent: {
+        data,
+        config,
+      },
+      content: [
+        {
+          type: "text",
+          text: `Line chart with ${data.length} data points${config?.title ? `: ${config.title}` : ""}`,
+        },
+      ],
+      isError: false,
+    };
+  },
+);
+
+// Visualization Widget: Render Scatter Plot
+server.registerWidget(
+  "render_scatter_plot",
+  {
+    description: "Render a scatter plot for visualizing relationships between two variables with optional color coding by category and trend line. This is a visualization-only widget that accepts structured data and configuration.",
+  },
+  {
+    description: "Display two-dimensional data as a scatter plot with configurable axes, color coding by category, and optional trend line. Use this to visualize relationships between metrics such as distance vs pace, elevation vs heart rate, or any other metric correlations.",
+    inputSchema: {
+      data: z.array(z.object({
+        x: z.number().describe("X-axis value"),
+        y: z.number().describe("Y-axis value"),
+        category: z.string().optional().describe("Optional category for color coding"),
+      })).describe("Array of data points with x, y coordinates and optional category"),
+      config: z.object({
+        title: z.string().optional().describe("Chart title"),
+        xAxis: z.object({
+          label: z.string().describe("X-axis label"),
+          unit: z.string().optional().describe("X-axis unit (e.g., 'km', 'm', 'bpm')"),
+        }).optional().describe("X-axis configuration"),
+        yAxis: z.object({
+          label: z.string().describe("Y-axis label"),
+          unit: z.string().optional().describe("Y-axis unit (e.g., 'min/km', 'm', 'bpm')"),
+        }).optional().describe("Y-axis configuration"),
+        colors: z.record(z.string(), z.string()).optional().describe("Color mapping for categories (uses design system gradients by default)"),
+        showTrendLine: z.boolean().optional().describe("Whether to show linear regression trend line (default: false)"),
+        showLegend: z.boolean().optional().describe("Whether to show legend (default: true for multiple categories)"),
+      }).optional().describe("Optional chart configuration"),
+    },
+  },
+  async ({ data, config }) => {
+    return {
+      structuredContent: {
+        data,
+        config,
+      },
+      content: [
+        {
+          type: "text",
+          text: `Scatter plot with ${data.length} data points${config?.title ? `: ${config.title}` : ""}${config?.showTrendLine ? " (with trend line)" : ""}`,
+        },
+      ],
+      isError: false,
+    };
+  },
+);
+
+// Visualization Widget: Render Heatmap
+server.registerWidget(
+  "render_heatmap",
+  {
+    description: "Render a calendar heatmap showing activity frequency and intensity over time. This is a visualization-only widget that accepts date + intensity pairs.",
+  },
+  {
+    description: "Display activity data as a calendar heatmap with color-coded intensity levels. Use this to visualize training consistency, activity patterns, and identify rest days or high-volume periods.",
+    inputSchema: {
+      data: z.array(z.object({
+        date: z.string().describe("ISO date string (YYYY-MM-DD)"),
+        intensity: z.number().min(0).max(1).describe("Activity intensity on 0-1 scale (0 = no activity, 1 = max intensity)"),
+        details: z.object({
+          distance: z.number().optional().describe("Distance in kilometers"),
+          duration: z.number().optional().describe("Duration in minutes"),
+          pace: z.string().optional().describe("Pace in min:sec format"),
+          activityName: z.string().optional().describe("Name of the activity"),
+        }).optional().describe("Optional activity details for tooltip"),
+      })).describe("Array of date + intensity pairs with optional activity details"),
+      config: z.object({
+        title: z.string().optional().describe("Heatmap title"),
+        startDate: z.string().optional().describe("ISO date string for calendar start (defaults to earliest data date)"),
+        colorGradient: z.array(z.string()).optional().describe("Array of colors from low to high intensity (uses design system gradient by default)"),
+        showTooltips: z.boolean().optional().describe("Whether to show tooltips on hover (default: true)"),
+        showMonthLabels: z.boolean().optional().describe("Whether to show month labels (default: true)"),
+        showDayLabels: z.boolean().optional().describe("Whether to show day of week labels (default: true)"),
+      }).optional().describe("Optional heatmap configuration"),
+    },
+  },
+  async ({ data, config }) => {
+    return {
+      structuredContent: {
+        data,
+        config,
+      },
+      content: [
+        {
+          type: "text",
+          text: `Heatmap with ${data.length} activity days${config?.title ? `: ${config.title}` : ""}`,
+        },
+      ],
+      isError: false,
+    };
+  },
+);
+
+// Visualization Widget: Render Distribution
+server.registerWidget(
+  "render_distribution",
+  {
+    description: "Render a distribution visualization (box plot or histogram) for analyzing metric spread, quartiles, and outliers. This is a visualization-only widget that accepts metric values and configuration.",
+  },
+  {
+    description: "Display metric distribution as a box plot or histogram showing quartiles, outliers, and data spread. Use this to analyze pace distribution, heart rate zones, distance patterns, or any other metric distributions to understand variability and identify outliers.",
+    inputSchema: {
+      data: z.array(z.number()).describe("Array of metric values to visualize"),
+      config: z.object({
+        title: z.string().optional().describe("Chart title"),
+        type: z.enum(["box", "histogram"]).describe("Visualization type: 'box' for box plot or 'histogram' for histogram"),
+        metricLabel: z.string().optional().describe("Label for the metric being visualized (e.g., 'Pace', 'Heart Rate')"),
+        unit: z.string().optional().describe("Unit of measurement (e.g., 'min/km', 'bpm', 'km')"),
+        binCount: z.number().optional().describe("Number of bins for histogram (default: 10, only used for histogram type)"),
+        showOutliers: z.boolean().optional().describe("Whether to show outliers in box plot (default: true, only used for box type)"),
+        color: z.string().optional().describe("Primary color for the visualization (uses design system gradient by default)"),
+      }).describe("Configuration for the distribution visualization"),
+    },
+  },
+  async ({ data, config }) => {
+    return {
+      structuredContent: {
+        data,
+        config,
+      },
+      content: [
+        {
+          type: "text",
+          text: `${config.type === "box" ? "Box plot" : "Histogram"} with ${data.length} data points${config.title ? `: ${config.title}` : ""}`,
+        },
+      ],
+      isError: false,
+    };
+  },
+);
+
 // Widget 3: Coaching Advice
 server.registerWidget(
   "get_coaching_advice",
