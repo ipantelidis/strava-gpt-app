@@ -39,7 +39,7 @@ server.registerWidget(
 server.registerTool(
   "exchange_strava_code",
   {
-    description: "🔗 Step 1: Connect to Strava. Get your authorization code by visiting: https://www.strava.com/oauth/authorize?client_id=200939&response_type=code&redirect_uri=http://localhost&approval_prompt=force&scope=read,activity:read_all (Click Authorize, then copy the 'code' from the URL). Step 2: Exchange your authorization code for an access token",
+    description: "⚠️ REQUIRED FIRST STEP: Before analyzing any training data, users MUST authorize Strava access. Guide them to: 1) Click this authorization link: https://www.strava.com/oauth/authorize?client_id=200939&response_type=code&redirect_uri=http://localhost&approval_prompt=force&scope=read,activity:read_all 2) Click 'Authorize' on Strava 3) Copy the 'code' parameter from the redirect URL 4) Paste it here to exchange for an access token. If authorization fails or token is invalid, ALWAYS prompt user to get a fresh code by repeating these steps.",
     inputSchema: {
       code: z.string().describe("The authorization code from the Strava redirect URL (after 'code=')"),
     },
@@ -125,7 +125,7 @@ server.registerTool(
 server.registerWidget(
   "get_training_summary",
   {
-    description: "Get a summary of recent training with insights",
+    description: "⚠️ REQUIRES AUTHORIZATION: Analyze recent running activities. User MUST have a valid Strava token. If no token or auth fails, STOP and guide user through exchange_strava_code tool first.",
   },
   {
     description: "Analyze recent running activities and provide coaching insights",
@@ -229,7 +229,7 @@ server.registerWidget(
 server.registerWidget(
   "compare_training_weeks",
   {
-    description: "Compare current week with previous week",
+    description: "⚠️ REQUIRES AUTHORIZATION: Compare training weeks. User MUST have a valid Strava token. If no token or auth fails, STOP and guide user through exchange_strava_code tool first.",
   },
   {
     description: "Show week-over-week training progress with trends",
@@ -376,7 +376,7 @@ server.registerWidget(
 server.registerWidget(
   "get_coaching_advice",
   {
-    description: "Get personalized coaching advice based on recent training",
+    description: "⚠️ REQUIRES AUTHORIZATION: Get personalized coaching advice. User MUST have a valid Strava token. If no token or auth fails, STOP and guide user through exchange_strava_code tool first.",
   },
   {
     description: "Analyze training load and provide actionable next-step recommendations",
