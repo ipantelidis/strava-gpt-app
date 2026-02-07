@@ -1,18 +1,12 @@
-import { useWidget } from "skybridge/web";
+import { generateHelpers } from "skybridge/web";
 import type { AppType } from "../../../server/src/server";
 
+const { useToolInfo } = generateHelpers<AppType>();
+
 export default function CoachingAdvice() {
-  const { data, error } = useWidget<AppType, "get_coaching_advice">();
+  const toolInfo = useToolInfo<"get_coaching_advice">();
 
-  if (error) {
-    return (
-      <div style={{ padding: "20px", color: "#ef4444" }}>
-        <p>Error: {error}</p>
-      </div>
-    );
-  }
-
-  if (!data) {
+  if (toolInfo.isPending) {
     return (
       <div style={{ padding: "20px" }}>
         <p>Analyzing your training...</p>
@@ -20,7 +14,15 @@ export default function CoachingAdvice() {
     );
   }
 
-  const { recentLoad, recommendation, trainingState } = data;
+  if (!toolInfo.isSuccess) {
+    return (
+      <div style={{ padding: "20px", color: "#ef4444" }}>
+        <p>Error analyzing training</p>
+      </div>
+    );
+  }
+
+  const { recentLoad, recommendation, trainingState } = toolInfo.output;
 
   const getStateColor = () => {
     switch (trainingState) {

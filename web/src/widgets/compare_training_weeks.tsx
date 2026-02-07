@@ -1,18 +1,12 @@
-import { useWidget } from "skybridge/web";
+import { generateHelpers } from "skybridge/web";
 import type { AppType } from "../../../server/src/server";
 
+const { useToolInfo } = generateHelpers<AppType>();
+
 export default function CompareTrainingWeeks() {
-  const { data, error } = useWidget<AppType, "compare_training_weeks">();
+  const toolInfo = useToolInfo<"compare_training_weeks">();
 
-  if (error) {
-    return (
-      <div style={{ padding: "20px", color: "#ef4444" }}>
-        <p>Error: {error}</p>
-      </div>
-    );
-  }
-
-  if (!data) {
+  if (toolInfo.isPending) {
     return (
       <div style={{ padding: "20px" }}>
         <p>Loading comparison data...</p>
@@ -20,7 +14,15 @@ export default function CompareTrainingWeeks() {
     );
   }
 
-  const { currentWeek, previousWeek, changes, trend } = data;
+  if (!toolInfo.isSuccess) {
+    return (
+      <div style={{ padding: "20px", color: "#ef4444" }}>
+        <p>Error loading comparison data</p>
+      </div>
+    );
+  }
+
+  const { currentWeek, previousWeek, changes, trend } = toolInfo.output;
 
   const getTrendColor = () => {
     if (trend === "improving") return "#10b981";

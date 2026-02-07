@@ -1,18 +1,12 @@
-import { useWidget } from "skybridge/web";
+import { generateHelpers } from "skybridge/web";
 import type { AppType } from "../../../server/src/server";
 
+const { useToolInfo } = generateHelpers<AppType>();
+
 export default function TrainingSummary() {
-  const { data, error } = useWidget<AppType, "get_training_summary">();
+  const toolInfo = useToolInfo<"get_training_summary">();
 
-  if (error) {
-    return (
-      <div style={{ padding: "20px", color: "#ef4444" }}>
-        <p>Error: {error}</p>
-      </div>
-    );
-  }
-
-  if (!data) {
+  if (toolInfo.isPending) {
     return (
       <div style={{ padding: "20px" }}>
         <p>Loading your training data...</p>
@@ -20,7 +14,15 @@ export default function TrainingSummary() {
     );
   }
 
-  const { period, stats, runs } = data;
+  if (!toolInfo.isSuccess) {
+    return (
+      <div style={{ padding: "20px", color: "#ef4444" }}>
+        <p>Error loading training data</p>
+      </div>
+    );
+  }
+
+  const { period, stats, runs } = toolInfo.output;
 
   return (
     <div style={{ padding: "20px", fontFamily: "system-ui, sans-serif" }}>
