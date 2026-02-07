@@ -119,18 +119,47 @@ export function createAuthError(type: AuthError["type"]): AuthError {
 
 /**
  * Returns auth error response for unauthenticated requests
+ * Uses component button for OAuth authorization
  */
 export function authErrorResponse(errorType: AuthError["type"] = "missing_token") {
   const serverUrl = process.env.MCP_SERVER_URL || "http://localhost:3000";
-  const authError = createAuthError(errorType);
+  const clientId = process.env.STRAVA_CLIENT_ID;
   
-  const instructionsText = authError.instructions.join("\n\n");
+  if (!clientId) {
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: "🔐 Server configuration error: Strava client ID not configured. Please contact support.",
+        },
+      ],
+      isError: true,
+    };
+  }
+  
+  // Create authorization URL with callback to our server
+  const authUrl = `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(serverUrl + "/oauth/callback")}&approval_prompt=force&scope=read,activity:read_all`;
+  
+  const authError = createAuthError(errorType);
   
   return {
     content: [
       {
         type: "text" as const,
-        text: `🔐 ${authError.message}\n\n${instructionsText}`,
+        text: `🔐 ${authError.message}\n\n${authError.instructions.join("\n")}`,
+      },
+      // Component button for OAuth (ChatGPT Apps SDK feature)
+      {
+        type: "component",
+        component: {
+          type: "button",
+          text: "Connect Strava",
+          url: authUrl,
+        },
+      } as any,
+      {
+        type: "text" as const,
+        text: "After authorizing on Strava, you'll receive an access token. Copy it and provide it when using the tools.",
       },
     ],
     isError: true,
@@ -139,6 +168,7 @@ export function authErrorResponse(errorType: AuthError["type"] = "missing_token"
         `Bearer resource_metadata="${serverUrl}/.well-known/oauth-protected-resource"`,
       ],
       authError: authError,
+      authorizationUrl: authUrl,
     },
   };
 }
