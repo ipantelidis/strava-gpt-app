@@ -24,7 +24,7 @@ export default function TrainingSummary() {
     );
   }
 
-  const { period, stats, runs } = toolInfo.output;
+  const { period, stats, runs } = toolInfo.output as any;
 
   return (
     <div style={{ 
