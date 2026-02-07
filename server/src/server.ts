@@ -20,10 +20,7 @@ const server = new McpServer(
 server.registerTool(
   "exchange_strava_code",
   {
-    description: "🔗 Step 1: Connect to Strava. Get your authorization code by visiting: https://www.strava.com/oauth/authorize?client_id=200939&response_type=code&redirect_uri=http://localhost&approval_prompt=force&scope=read,activity:read_all (Click Authorize, then copy the 'code' from the URL)",
-  },
-  {
-    description: "Step 2: Exchange your authorization code for an access token",
+    description: "🔗 Step 1: Connect to Strava. Get your authorization code by visiting: https://www.strava.com/oauth/authorize?client_id=200939&response_type=code&redirect_uri=http://localhost&approval_prompt=force&scope=read,activity:read_all (Click Authorize, then copy the 'code' from the URL). Step 2: Exchange your authorization code for an access token",
     inputSchema: {
       code: z.string().describe("The authorization code from the Strava redirect URL (after 'code=')"),
     },
