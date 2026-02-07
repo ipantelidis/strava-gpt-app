@@ -47,12 +47,15 @@ server.registerWidget(
   },
 );
 
-// Tool: Connect Strava Account
-// Returns a component button for OAuth authorization
-server.registerTool(
+// Widget: Connect Strava Account
+// Renders UI with authorization button
+server.registerWidget(
   "connect_strava",
   {
-    description: "Connect your Strava account to access your training data. This tool provides an authorization button that opens Strava's OAuth page. Use this when you need to authorize or re-authorize access to your Strava activities.",
+    description: "Connect your Strava account to access your training data. This widget provides an authorization interface with a clickable button. Use this when you need to authorize or re-authorize access to your Strava activities.",
+  },
+  {
+    description: "Display Strava authorization interface with connect button",
     inputSchema: {},
   },
   async () => {
@@ -75,22 +78,14 @@ server.registerTool(
     const authUrl = `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(serverUrl + "/oauth/callback")}&approval_prompt=force&scope=read,activity:read_all`;
     
     return {
+      structuredContent: {
+        authUrl,
+        serverUrl,
+      },
       content: [
         {
           type: "text",
-          text: "🔐 Connect Your Strava Account\n\nTo analyze your training data, I need access to your Strava activities.\n\nClick the button below to authorize access:",
-        },
-        {
-          type: "component",
-          component: {
-            type: "button",
-            text: "Connect Strava",
-            url: authUrl,
-          },
-        } as any,
-        {
-          type: "text",
-          text: "\nAfter authorizing on Strava, you'll receive an access token. Copy it and provide it when using the training tools.",
+          text: `🔐 Connect Your Strava Account\n\nTo analyze your training data, I need access to your Strava activities.\n\nClick here to authorize: ${authUrl}\n\nAfter authorizing on Strava, you'll receive an access token. Copy it and provide it when using the training tools.`,
         },
       ],
       isError: false,
@@ -103,7 +98,7 @@ server.registerTool(
 server.registerTool(
   "exchange_strava_code",
   {
-    description: "⚠️ DEPRECATED: This tool is no longer needed. Use 'connect_strava' instead to get an authorization button.",
+    description: "⚠️ DEPRECATED: This tool is no longer needed. Use 'connect_strava' widget instead to get an authorization interface.",
     inputSchema: {
       code: z.string().describe("Authorization code (deprecated)"),
     },
@@ -113,7 +108,7 @@ server.registerTool(
       content: [
         {
           type: "text",
-          text: "⚠️ This tool is deprecated. Please use the 'connect_strava' tool instead to get an authorization button.",
+          text: "⚠️ This tool is deprecated. Please use the 'connect_strava' widget instead to get an authorization interface.",
         },
       ],
       isError: true,
