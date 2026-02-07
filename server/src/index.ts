@@ -22,6 +22,7 @@ app.use(
       response_types_supported: ["code"],
       grant_types_supported: ["authorization_code", "refresh_token"],
       code_challenge_methods_supported: ["S256"],
+      scopes_supported: ["read", "activity:read_all"],
       // Pre-registered client credentials for Strava
       client_id: process.env.STRAVA_CLIENT_ID,
       client_secret: process.env.STRAVA_CLIENT_SECRET,
