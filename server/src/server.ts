@@ -27,30 +27,51 @@ server.registerTool(
   },
   async ({ code }) => {
     try {
-      const response = await fetch("https://www.strava.com/oauth/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          client_id: process.env.STRAVA_CLIENT_ID || "",
-          client_secret: process.env.STRAVA_CLIENT_SECRET || "",
-          code: code,
-          grant_type: "authorization_code",
-        }),
-      });
-
-      if (!response.ok) {
+      console.log("Exchanging code for token...", { code: code.substring(0, 10) + "..." });
+      
+      const clientId = process.env.STRAVA_CLIENT_ID;
+      const clientSecret = process.env.STRAVA_CLIENT_SECRET;
+      
+      if (!clientId || !clientSecret) {
+        console.error("Missing Strava credentials");
         return {
           content: [
             {
               type: "text",
-              text: `Failed to exchange code: ${response.status} ${response.statusText}`,
+              text: "Server configuration error: Strava credentials not set. Please contact support.",
             },
           ],
           isError: true,
         };
       }
 
-      const data = await response.json();
+      const response = await fetch("https://www.strava.com/oauth/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          code: code,
+          grant_type: "authorization_code",
+        }),
+      });
+
+      const responseText = await response.text();
+      console.log("Strava response:", response.status, responseText.substring(0, 100));
+
+      if (!response.ok) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to exchange code: ${response.status} ${response.statusText}. ${responseText}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const data = JSON.parse(responseText);
 
       return {
         structuredContent: {
