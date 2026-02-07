@@ -16,6 +16,25 @@ const server = new McpServer(
   { capabilities: {} },
 );
 
+// Test widget to verify rendering
+server.registerWidget(
+  "test_widget",
+  {
+    description: "Test widget to verify rendering works",
+  },
+  {
+    description: "Simple test widget",
+    inputSchema: {},
+  },
+  async () => {
+    return {
+      structuredContent: { message: "Hello from server!" },
+      content: [{ type: "text", text: "Test widget" }],
+      isError: false,
+    };
+  },
+);
+
 // Helper tool: Exchange Strava authorization code for access token
 server.registerTool(
   "exchange_strava_code",
