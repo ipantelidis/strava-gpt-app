@@ -8,36 +8,36 @@ export default function CoachingAdvice() {
 
   if (toolInfo.isPending) {
     return (
-      <div style={{ padding: "24px", textAlign: "center" }}>
-        <div style={{ fontSize: "32px", marginBottom: "8px" }}>🤔</div>
-        <p style={{ color: "#666", margin: 0 }}>Analyzing your training...</p>
+      <div style={{ padding: "32px", textAlign: "center" }}>
+        <div style={{ fontSize: "40px", marginBottom: "12px" }}>🤔</div>
+        <p style={{ color: "#666", margin: 0, fontSize: "14px" }}>Analyzing your training...</p>
       </div>
     );
   }
 
   if (!toolInfo.isSuccess) {
     return (
-      <div style={{ padding: "24px", textAlign: "center", color: "#ef4444" }}>
-        <div style={{ fontSize: "32px", marginBottom: "8px" }}>⚠️</div>
-        <p style={{ margin: 0 }}>Error analyzing training</p>
+      <div style={{ padding: "32px", textAlign: "center" }}>
+        <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
+        <p style={{ margin: 0, color: "#ef4444", fontSize: "14px" }}>Error analyzing training</p>
       </div>
     );
   }
 
-  const { recentLoad, recommendation, trainingState } = toolInfo.output;
+  const { recentLoad, recommendation, trainingState } = toolInfo.output as any;
 
   const getStateConfig = () => {
     switch (trainingState) {
       case "fresh":
-        return { emoji: "💪", color: "#10b981", bg: "#d1fae5", label: "Fresh & Ready" };
+        return { emoji: "💪", color: "#10b981", bg: "rgba(16, 185, 129, 0.1)", label: "Fresh & Ready" };
       case "building":
-        return { emoji: "📈", color: "#3b82f6", bg: "#dbeafe", label: "Building Fitness" };
+        return { emoji: "📈", color: "#3b82f6", bg: "rgba(59, 130, 246, 0.1)", label: "Building Fitness" };
       case "fatigued":
-        return { emoji: "😓", color: "#f59e0b", bg: "#fef3c7", label: "Fatigued" };
+        return { emoji: "😓", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.1)", label: "Fatigued" };
       case "recovering":
-        return { emoji: "🧘", color: "#8b5cf6", bg: "#ede9fe", label: "Recovering" };
+        return { emoji: "🧘", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.1)", label: "Recovering" };
       default:
-        return { emoji: "🏃", color: "#6b7280", bg: "#f3f4f6", label: "Training" };
+        return { emoji: "🏃", color: "#6b7280", bg: "rgba(107, 114, 128, 0.1)", label: "Training" };
     }
   };
 
@@ -45,86 +45,143 @@ export default function CoachingAdvice() {
 
   return (
     <div style={{ 
-      maxWidth: "600px",
+      maxWidth: "640px",
       margin: "0 auto",
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif"
     }}>
       <div style={{ 
-        background: "white", 
-        borderRadius: "16px", 
-        padding: "24px",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
-        border: "1px solid #e5e7eb"
+        background: "rgba(255, 255, 255, 0.02)",
+        backdropFilter: "blur(20px)",
+        borderRadius: "24px", 
+        padding: "32px",
+        border: "1px solid rgba(255, 255, 255, 0.06)",
+        boxShadow: "0 20px 60px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+        position: "relative" as const,
+        overflow: "hidden" as const
       }}>
+        {/* Gradient overlay */}
+        <div style={{
+          position: "absolute" as const,
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "200px",
+          background: "linear-gradient(180deg, rgba(102, 126, 234, 0.03) 0%, transparent 100%)",
+          pointerEvents: "none" as const
+        }} />
+
         {/* Header */}
-        <h2 style={{ margin: "0 0 20px 0", fontSize: "24px", fontWeight: "700", color: "#111" }}>
-          Coaching Advice
-        </h2>
+        <div style={{ position: "relative" as const, marginBottom: "24px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ 
+              width: "8px", 
+              height: "8px", 
+              borderRadius: "50%", 
+              background: stateConfig.color,
+              boxShadow: `0 0 12px ${stateConfig.color}99`
+            }} />
+            <span style={{ 
+              fontSize: "11px", 
+              fontWeight: "600", 
+              color: "rgba(0, 0, 0, 0.5)",
+              textTransform: "uppercase" as const,
+              letterSpacing: "1px"
+            }}>
+              Coaching Advice
+            </span>
+          </div>
+        </div>
 
         {/* Training State Banner */}
         <div style={{
-          padding: "24px",
+          padding: "28px",
           background: stateConfig.bg,
-          borderRadius: "12px",
-          marginBottom: "24px",
+          backdropFilter: "blur(10px)",
+          borderRadius: "16px",
+          marginBottom: "32px",
           display: "flex",
           alignItems: "center",
-          gap: "16px",
-          border: `2px solid ${stateConfig.color}`
+          gap: "20px",
+          border: `1px solid ${stateConfig.color}33`,
+          position: "relative" as const,
+          overflow: "hidden" as const
         }}>
-          <span style={{ fontSize: "48px" }}>{stateConfig.emoji}</span>
-          <div>
-            <div style={{ fontSize: "24px", fontWeight: "700", color: stateConfig.color, marginBottom: "4px" }}>
+          <div style={{
+            position: "absolute" as const,
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: `linear-gradient(135deg, ${stateConfig.color}08 0%, transparent 100%)`,
+            pointerEvents: "none" as const
+          }} />
+          <span style={{ fontSize: "56px", position: "relative" as const }}>{stateConfig.emoji}</span>
+          <div style={{ position: "relative" as const }}>
+            <div style={{ fontSize: "28px", fontWeight: "700", color: stateConfig.color, marginBottom: "4px" }}>
               {stateConfig.label}
             </div>
-            <div style={{ fontSize: "14px", color: "#6b7280" }}>
+            <div style={{ fontSize: "13px", color: "rgba(0, 0, 0, 0.5)" }}>
               Current training state
             </div>
           </div>
         </div>
 
         {/* Recent Load */}
-        <div style={{ marginBottom: "24px" }}>
-          <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "12px", color: "#333" }}>
+        <div style={{ marginBottom: "32px", position: "relative" as const }}>
+          <h3 style={{ 
+            fontSize: "13px", 
+            fontWeight: "600", 
+            marginBottom: "16px", 
+            color: "rgba(0, 0, 0, 0.6)",
+            textTransform: "uppercase" as const,
+            letterSpacing: "0.5px"
+          }}>
             Recent Load
           </h3>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" }}>
-            <div style={{ 
-              padding: "16px", 
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              borderRadius: "10px",
-              color: "white",
-              textAlign: "center"
-            }}>
-              <div style={{ fontSize: "28px", fontWeight: "bold", marginBottom: "4px" }}>
-                {recentLoad.last7Days}
+            {[
+              { value: recentLoad.last7Days, label: "Last 7 days", gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" },
+              { value: recentLoad.last3Days, label: "Last 3 days", gradient: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" },
+              { value: recentLoad.consecutiveDays, label: "Consecutive", gradient: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)" }
+            ].map((stat, i) => (
+              <div key={i} style={{ 
+                padding: "20px", 
+                background: "rgba(255, 255, 255, 0.4)",
+                backdropFilter: "blur(10px)",
+                borderRadius: "12px",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                textAlign: "center" as const,
+                position: "relative" as const,
+                overflow: "hidden" as const
+              }}>
+                <div style={{
+                  position: "absolute" as const,
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: stat.gradient,
+                  opacity: 0.08,
+                  pointerEvents: "none" as const
+                }} />
+                <div style={{ position: "relative" as const }}>
+                  <div style={{ 
+                    fontSize: "32px", 
+                    fontWeight: "700", 
+                    marginBottom: "4px",
+                    background: stat.gradient,
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text"
+                  }}>
+                    {stat.value}
+                  </div>
+                  <div style={{ fontSize: "11px", color: "rgba(0, 0, 0, 0.5)", fontWeight: "500" }}>
+                    {stat.label}
+                  </div>
+                </div>
               </div>
-              <div style={{ fontSize: "12px", opacity: 0.9 }}>Last 7 days (km)</div>
-            </div>
-            <div style={{ 
-              padding: "16px", 
-              background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-              borderRadius: "10px",
-              color: "white",
-              textAlign: "center"
-            }}>
-              <div style={{ fontSize: "28px", fontWeight: "bold", marginBottom: "4px" }}>
-                {recentLoad.last3Days}
-              </div>
-              <div style={{ fontSize: "12px", opacity: 0.9 }}>Last 3 days (km)</div>
-            </div>
-            <div style={{ 
-              padding: "16px", 
-              background: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
-              borderRadius: "10px",
-              color: "white",
-              textAlign: "center"
-            }}>
-              <div style={{ fontSize: "28px", fontWeight: "bold", marginBottom: "4px" }}>
-                {recentLoad.consecutiveDays}
-              </div>
-              <div style={{ fontSize: "12px", opacity: 0.9 }}>Consecutive days</div>
-            </div>
+            ))}
           </div>
         </div>
 
@@ -132,37 +189,53 @@ export default function CoachingAdvice() {
         {recommendation.action && (
           <div style={{
             padding: "24px",
-            background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
-            border: "2px solid #f59e0b",
-            borderRadius: "12px"
+            background: "rgba(245, 158, 11, 0.08)",
+            backdropFilter: "blur(10px)",
+            border: "1px solid rgba(245, 158, 11, 0.2)",
+            borderRadius: "16px",
+            position: "relative" as const,
+            overflow: "hidden" as const
           }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-              <span style={{ fontSize: "24px" }}>💡</span>
-              <h3 style={{ fontSize: "18px", margin: 0, fontWeight: "700", color: "#92400e" }}>
-                Recommendation
-              </h3>
-            </div>
-            <p style={{ fontSize: "16px", fontWeight: "600", margin: "0 0 12px 0", color: "#78350f" }}>
-              {recommendation.action}
-            </p>
-            {recommendation.reasoning && (
-              <p style={{ fontSize: "14px", margin: "0 0 12px 0", color: "#92400e", lineHeight: "1.5" }}>
-                {recommendation.reasoning}
-              </p>
-            )}
-            {recommendation.nextRun && (
-              <div style={{
-                padding: "16px",
-                background: "white",
-                borderRadius: "8px",
-                fontSize: "14px",
-                color: "#78350f",
-                marginTop: "12px"
-              }}>
-                <strong style={{ display: "block", marginBottom: "4px" }}>Next run:</strong>
-                {recommendation.nextRun}
+            <div style={{
+              position: "absolute" as const,
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: "linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, transparent 100%)",
+              pointerEvents: "none" as const
+            }} />
+            <div style={{ position: "relative" as const }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                <span style={{ fontSize: "24px" }}>💡</span>
+                <h3 style={{ fontSize: "16px", margin: 0, fontWeight: "700", color: "#92400e" }}>
+                  Recommendation
+                </h3>
               </div>
-            )}
+              <p style={{ fontSize: "16px", fontWeight: "600", margin: "0 0 12px 0", color: "#78350f", lineHeight: "1.5" }}>
+                {recommendation.action}
+              </p>
+              {recommendation.reasoning && (
+                <p style={{ fontSize: "14px", margin: "0 0 12px 0", color: "#92400e", lineHeight: "1.6" }}>
+                  {recommendation.reasoning}
+                </p>
+              )}
+              {recommendation.nextRun && (
+                <div style={{
+                  padding: "16px",
+                  background: "rgba(255, 255, 255, 0.6)",
+                  backdropFilter: "blur(10px)",
+                  borderRadius: "10px",
+                  fontSize: "14px",
+                  color: "#78350f",
+                  marginTop: "12px",
+                  border: "1px solid rgba(245, 158, 11, 0.2)"
+                }}>
+                  <strong style={{ display: "block", marginBottom: "4px", fontSize: "12px", textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>Next run:</strong>
+                  {recommendation.nextRun}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

@@ -8,170 +8,221 @@ export default function CompareTrainingWeeks() {
 
   if (toolInfo.isPending) {
     return (
-      <div style={{ padding: "24px", textAlign: "center" }}>
-        <div style={{ fontSize: "32px", marginBottom: "8px" }}>📊</div>
-        <p style={{ color: "#666", margin: 0 }}>Comparing weeks...</p>
+      <div style={{ padding: "32px", textAlign: "center" }}>
+        <div style={{ fontSize: "40px", marginBottom: "12px" }}>📊</div>
+        <p style={{ color: "#666", margin: 0, fontSize: "14px" }}>Comparing weeks...</p>
       </div>
     );
   }
 
   if (!toolInfo.isSuccess) {
     return (
-      <div style={{ padding: "24px", textAlign: "center", color: "#ef4444" }}>
-        <div style={{ fontSize: "32px", marginBottom: "8px" }}>⚠️</div>
-        <p style={{ margin: 0 }}>Error loading comparison</p>
+      <div style={{ padding: "32px", textAlign: "center" }}>
+        <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
+        <p style={{ margin: 0, color: "#ef4444", fontSize: "14px" }}>Error loading comparison</p>
       </div>
     );
   }
 
-  const { currentWeek, previousWeek, changes, trend } = toolInfo.output;
+  const { currentWeek, previousWeek, changes, trend } = toolInfo.output as any;
 
-  const getTrendColor = () => {
-    if (trend === "improving") return { bg: "#10b981", light: "#d1fae5" };
-    if (trend === "declining") return { bg: "#ef4444", light: "#fee2e2" };
-    return { bg: "#6b7280", light: "#f3f4f6" };
+  const getTrendConfig = () => {
+    if (trend === "improving") return { color: "#10b981", bg: "rgba(16, 185, 129, 0.1)", label: "Improving" };
+    if (trend === "declining") return { color: "#ef4444", bg: "rgba(239, 68, 68, 0.1)", label: "Declining" };
+    return { color: "#6b7280", bg: "rgba(107, 114, 128, 0.1)", label: "Stable" };
   };
 
-  const getTrendIcon = (value: number) => {
-    if (value > 0) return "↑";
-    if (value < 0) return "↓";
-    return "→";
-  };
-
-  const trendColors = getTrendColor();
+  const getTrendIcon = (value: number) => value > 0 ? "↑" : value < 0 ? "↓" : "→";
+  const trendConfig = getTrendConfig();
 
   return (
     <div style={{ 
-      maxWidth: "600px",
+      maxWidth: "640px",
       margin: "0 auto",
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif"
     }}>
       <div style={{ 
-        background: "white", 
-        borderRadius: "16px", 
-        padding: "24px",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
-        border: "1px solid #e5e7eb"
+        background: "rgba(255, 255, 255, 0.02)",
+        backdropFilter: "blur(20px)",
+        borderRadius: "24px", 
+        padding: "32px",
+        border: "1px solid rgba(255, 255, 255, 0.06)",
+        boxShadow: "0 20px 60px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+        position: "relative" as const,
+        overflow: "hidden" as const
       }}>
+        {/* Gradient overlay */}
+        <div style={{
+          position: "absolute" as const,
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "200px",
+          background: "linear-gradient(180deg, rgba(102, 126, 234, 0.03) 0%, transparent 100%)",
+          pointerEvents: "none" as const
+        }} />
+
         {/* Header with Trend Badge */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-          <h2 style={{ margin: 0, fontSize: "24px", fontWeight: "700", color: "#111" }}>
-            Week Comparison
-          </h2>
+        <div style={{ position: "relative" as const, display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+              <div style={{ 
+                width: "8px", 
+                height: "8px", 
+                borderRadius: "50%", 
+                background: trendConfig.color,
+                boxShadow: `0 0 12px ${trendConfig.color}99`
+              }} />
+              <span style={{ 
+                fontSize: "11px", 
+                fontWeight: "600", 
+                color: "rgba(0, 0, 0, 0.5)",
+                textTransform: "uppercase" as const,
+                letterSpacing: "1px"
+              }}>
+                Week Comparison
+              </span>
+            </div>
+          </div>
           <div style={{
             padding: "8px 16px",
-            background: trendColors.bg,
-            color: "white",
+            background: trendConfig.bg,
+            backdropFilter: "blur(10px)",
+            color: trendConfig.color,
             borderRadius: "20px",
-            fontSize: "14px",
-            fontWeight: "600",
-            textTransform: "uppercase",
-            letterSpacing: "0.5px"
+            fontSize: "11px",
+            fontWeight: "700",
+            textTransform: "uppercase" as const,
+            letterSpacing: "1px",
+            border: `1px solid ${trendConfig.color}33`
           }}>
-            {trend}
+            {trendConfig.label}
           </div>
         </div>
 
         {/* Week Comparison Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "32px", position: "relative" as const }}>
           <div style={{ 
-            padding: "20px", 
-            background: "#f9fafb", 
-            borderRadius: "12px",
-            border: "2px solid #e5e7eb"
+            padding: "24px", 
+            background: "rgba(255, 255, 255, 0.3)",
+            backdropFilter: "blur(10px)",
+            borderRadius: "16px",
+            border: "1px solid rgba(255, 255, 255, 0.2)",
+            position: "relative" as const,
+            overflow: "hidden" as const
           }}>
-            <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "8px", fontWeight: "600", textTransform: "uppercase" }}>
-              Previous Week
-            </div>
-            <div style={{ fontSize: "32px", fontWeight: "bold", marginBottom: "12px", color: "#374151" }}>
-              {previousWeek.totalDistance} km
-            </div>
-            <div style={{ fontSize: "14px", color: "#6b7280" }}>
-              {previousWeek.totalRuns} runs • {previousWeek.avgPace}/km
+            <div style={{
+              position: "absolute" as const,
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: "linear-gradient(135deg, rgba(107, 114, 128, 0.05) 0%, transparent 100%)",
+              pointerEvents: "none" as const
+            }} />
+            <div style={{ position: "relative" as const }}>
+              <div style={{ fontSize: "10px", color: "rgba(0, 0, 0, 0.4)", marginBottom: "12px", fontWeight: "600", textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>
+                Previous Week
+              </div>
+              <div style={{ fontSize: "36px", fontWeight: "700", marginBottom: "12px", color: "rgba(0, 0, 0, 0.7)" }}>
+                {previousWeek.totalDistance}
+                <span style={{ fontSize: "16px", fontWeight: "500", marginLeft: "4px", color: "rgba(0, 0, 0, 0.4)" }}>km</span>
+              </div>
+              <div style={{ fontSize: "12px", color: "rgba(0, 0, 0, 0.5)", fontFamily: "ui-monospace, monospace" }}>
+                {previousWeek.totalRuns} runs • {previousWeek.avgPace}/km
+              </div>
             </div>
           </div>
 
           <div style={{ 
-            padding: "20px", 
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            borderRadius: "12px",
-            color: "white",
-            boxShadow: "0 4px 16px rgba(102,126,234,0.4)"
+            padding: "24px", 
+            background: "rgba(255, 255, 255, 0.4)",
+            backdropFilter: "blur(10px)",
+            borderRadius: "16px",
+            border: "1px solid rgba(255, 255, 255, 0.3)",
+            position: "relative" as const,
+            overflow: "hidden" as const,
+            boxShadow: "0 8px 24px rgba(102, 126, 234, 0.15)"
           }}>
-            <div style={{ fontSize: "12px", opacity: 0.9, marginBottom: "8px", fontWeight: "600", textTransform: "uppercase" }}>
-              Current Week
-            </div>
-            <div style={{ fontSize: "32px", fontWeight: "bold", marginBottom: "12px" }}>
-              {currentWeek.totalDistance} km
-            </div>
-            <div style={{ fontSize: "14px", opacity: 0.9 }}>
-              {currentWeek.totalRuns} runs • {currentWeek.avgPace}/km
+            <div style={{
+              position: "absolute" as const,
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: "linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)",
+              pointerEvents: "none" as const
+            }} />
+            <div style={{ position: "relative" as const }}>
+              <div style={{ fontSize: "10px", color: "rgba(102, 126, 234, 0.7)", marginBottom: "12px", fontWeight: "600", textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>
+                Current Week
+              </div>
+              <div style={{ 
+                fontSize: "36px", 
+                fontWeight: "700", 
+                marginBottom: "12px",
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text"
+              }}>
+                {currentWeek.totalDistance}
+                <span style={{ fontSize: "16px", fontWeight: "500", marginLeft: "4px" }}>km</span>
+              </div>
+              <div style={{ fontSize: "12px", color: "rgba(102, 126, 234, 0.8)", fontFamily: "ui-monospace, monospace" }}>
+                {currentWeek.totalRuns} runs • {currentWeek.avgPace}/km
+              </div>
             </div>
           </div>
         </div>
 
         {/* Changes */}
-        <div>
-          <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "12px", color: "#333" }}>
+        <div style={{ position: "relative" as const }}>
+          <h3 style={{ 
+            fontSize: "13px", 
+            fontWeight: "600", 
+            marginBottom: "16px", 
+            color: "rgba(0, 0, 0, 0.6)",
+            textTransform: "uppercase" as const,
+            letterSpacing: "0.5px"
+          }}>
             Changes
           </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            <div style={{
-              padding: "16px",
-              background: changes.distanceChange > 0 ? "#d1fae5" : changes.distanceChange < 0 ? "#fee2e2" : "#f3f4f6",
-              borderRadius: "10px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              border: `2px solid ${changes.distanceChange > 0 ? "#10b981" : changes.distanceChange < 0 ? "#ef4444" : "#e5e7eb"}`
-            }}>
-              <span style={{ fontSize: "14px", fontWeight: "500", color: "#374151" }}>Distance</span>
-              <span style={{
-                fontSize: "20px",
-                fontWeight: "700",
-                color: changes.distanceChange > 0 ? "#059669" : changes.distanceChange < 0 ? "#dc2626" : "#6b7280"
-              }}>
-                {getTrendIcon(changes.distanceChange)} {Math.abs(changes.distanceChange)}%
-              </span>
-            </div>
-
-            <div style={{
-              padding: "16px",
-              background: changes.runsChange > 0 ? "#d1fae5" : changes.runsChange < 0 ? "#fee2e2" : "#f3f4f6",
-              borderRadius: "10px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              border: `2px solid ${changes.runsChange > 0 ? "#10b981" : changes.runsChange < 0 ? "#ef4444" : "#e5e7eb"}`
-            }}>
-              <span style={{ fontSize: "14px", fontWeight: "500", color: "#374151" }}>Number of Runs</span>
-              <span style={{
-                fontSize: "20px",
-                fontWeight: "700",
-                color: changes.runsChange > 0 ? "#059669" : changes.runsChange < 0 ? "#dc2626" : "#6b7280"
-              }}>
-                {getTrendIcon(changes.runsChange)} {Math.abs(changes.runsChange)}
-              </span>
-            </div>
-
-            <div style={{
-              padding: "16px",
-              background: changes.paceChange < 0 ? "#d1fae5" : changes.paceChange > 0 ? "#fee2e2" : "#f3f4f6",
-              borderRadius: "10px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              border: `2px solid ${changes.paceChange < 0 ? "#10b981" : changes.paceChange > 0 ? "#ef4444" : "#e5e7eb"}`
-            }}>
-              <span style={{ fontSize: "14px", fontWeight: "500", color: "#374151" }}>Pace</span>
-              <span style={{
-                fontSize: "20px",
-                fontWeight: "700",
-                color: changes.paceChange < 0 ? "#059669" : changes.paceChange > 0 ? "#dc2626" : "#6b7280"
-              }}>
-                {getTrendIcon(-changes.paceChange)} {Math.abs(changes.paceChange)}s/km
-              </span>
-            </div>
+          <div style={{ display: "flex", flexDirection: "column" as const, gap: "10px" }}>
+            {[
+              { label: "Distance", value: changes.distanceChange, suffix: "%", isGood: changes.distanceChange > 0 },
+              { label: "Number of Runs", value: changes.runsChange, suffix: "", isGood: changes.runsChange > 0 },
+              { label: "Pace", value: changes.paceChange, suffix: "s/km", isGood: changes.paceChange < 0, invertIcon: true }
+            ].map((change, i) => {
+              const isPositive = change.invertIcon ? change.value < 0 : change.value > 0;
+              const color = isPositive ? "#10b981" : change.value < 0 ? "#ef4444" : "#6b7280";
+              const bgColor = isPositive ? "rgba(16, 185, 129, 0.08)" : change.value < 0 ? "rgba(239, 68, 68, 0.08)" : "rgba(107, 114, 128, 0.08)";
+              
+              return (
+                <div key={i} style={{
+                  padding: "16px 20px",
+                  background: bgColor,
+                  backdropFilter: "blur(10px)",
+                  borderRadius: "12px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  border: `1px solid ${color}22`
+                }}>
+                  <span style={{ fontSize: "13px", fontWeight: "500", color: "rgba(0, 0, 0, 0.7)" }}>
+                    {change.label}
+                  </span>
+                  <span style={{
+                    fontSize: "20px",
+                    fontWeight: "700",
+                    color: color,
+                    fontFamily: "ui-monospace, monospace"
+                  }}>
+                    {getTrendIcon(change.invertIcon ? -change.value : change.value)} {Math.abs(change.value)}{change.suffix}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
