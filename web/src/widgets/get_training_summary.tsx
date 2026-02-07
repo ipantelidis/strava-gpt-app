@@ -8,18 +8,18 @@ export default function TrainingSummary() {
 
   if (toolInfo.isPending) {
     return (
-      <div style={{ padding: "24px", textAlign: "center" }}>
-        <div style={{ fontSize: "32px", marginBottom: "8px" }}>🏃‍♂️</div>
-        <p style={{ color: "#666", margin: 0 }}>Loading your training data...</p>
+      <div style={{ padding: "32px", textAlign: "center" }}>
+        <div style={{ fontSize: "40px", marginBottom: "12px", animation: "pulse 2s ease-in-out infinite" }}>🏃‍♂️</div>
+        <p style={{ color: "#666", margin: 0, fontSize: "14px" }}>Loading your training data...</p>
       </div>
     );
   }
 
   if (!toolInfo.isSuccess) {
     return (
-      <div style={{ padding: "24px", textAlign: "center", color: "#ef4444" }}>
-        <div style={{ fontSize: "32px", marginBottom: "8px" }}>⚠️</div>
-        <p style={{ margin: 0 }}>Error loading training data</p>
+      <div style={{ padding: "32px", textAlign: "center" }}>
+        <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
+        <p style={{ margin: 0, color: "#ef4444", fontSize: "14px" }}>Error loading training data</p>
       </div>
     );
   }
@@ -28,126 +28,149 @@ export default function TrainingSummary() {
 
   return (
     <div style={{ 
-      maxWidth: "600px",
+      maxWidth: "640px",
       margin: "0 auto",
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-      borderRadius: "16px",
-      padding: "1px",
-      boxShadow: "0 8px 32px rgba(0,0,0,0.1)"
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif",
     }}>
-      <div style={{ background: "white", borderRadius: "15px", padding: "24px" }}>
+      <div style={{ 
+        background: "rgba(255, 255, 255, 0.02)",
+        backdropFilter: "blur(20px)",
+        borderRadius: "24px", 
+        padding: "32px",
+        border: "1px solid rgba(255, 255, 255, 0.06)",
+        boxShadow: "0 20px 60px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+        position: "relative" as const,
+        overflow: "hidden" as const
+      }}>
+        {/* Subtle gradient overlay */}
+        <div style={{
+          position: "absolute" as const,
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "200px",
+          background: "linear-gradient(180deg, rgba(102, 126, 234, 0.03) 0%, transparent 100%)",
+          pointerEvents: "none" as const
+        }} />
+
         {/* Header */}
-        <div style={{ marginBottom: "24px" }}>
-          <h2 style={{ 
-            margin: "0 0 8px 0", 
-            fontSize: "24px", 
-            fontWeight: "700",
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent"
-          }}>
-            Training Summary
-          </h2>
-          <p style={{ color: "#666", fontSize: "14px", margin: 0 }}>
+        <div style={{ position: "relative" as const, marginBottom: "32px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+            <div style={{ 
+              width: "8px", 
+              height: "8px", 
+              borderRadius: "50%", 
+              background: "#10b981",
+              boxShadow: "0 0 12px rgba(16, 185, 129, 0.6)"
+            }} />
+            <span style={{ 
+              fontSize: "11px", 
+              fontWeight: "600", 
+              color: "rgba(0, 0, 0, 0.5)",
+              textTransform: "uppercase" as const,
+              letterSpacing: "1px"
+            }}>
+              Training Summary
+            </span>
+          </div>
+          <p style={{ color: "rgba(0, 0, 0, 0.4)", fontSize: "13px", margin: 0 }}>
             📅 {period.start} → {period.end}
           </p>
         </div>
 
-        {/* Stats Grid */}
+        {/* Stats Grid with glassmorphism */}
         <div style={{
           display: "grid",
           gridTemplateColumns: "repeat(2, 1fr)",
-          gap: "12px",
-          marginBottom: "24px"
+          gap: "16px",
+          marginBottom: "32px",
+          position: "relative" as const
         }}>
-          <div style={{ 
-            padding: "20px", 
-            background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-            borderRadius: "12px",
-            color: "white",
-            boxShadow: "0 4px 12px rgba(240,147,251,0.3)"
-          }}>
-            <div style={{ fontSize: "32px", fontWeight: "bold", marginBottom: "4px" }}>
-              {stats.totalDistance}
+          {[
+            { value: stats.totalDistance, label: "km total", gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" },
+            { value: stats.totalRuns, label: "runs", gradient: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" },
+            { value: stats.avgPace, label: "avg pace /km", gradient: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)" },
+            { value: stats.totalTime, label: "minutes", gradient: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)" }
+          ].map((stat, i) => (
+            <div key={i} style={{ 
+              padding: "24px", 
+              background: "rgba(255, 255, 255, 0.4)",
+              backdropFilter: "blur(10px)",
+              borderRadius: "16px",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              position: "relative" as const,
+              overflow: "hidden" as const,
+              transition: "all 0.3s ease"
+            }}>
+              <div style={{
+                position: "absolute" as const,
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: stat.gradient,
+                opacity: 0.08,
+                pointerEvents: "none" as const
+              }} />
+              <div style={{ position: "relative" as const }}>
+                <div style={{ 
+                  fontSize: "36px", 
+                  fontWeight: "700", 
+                  marginBottom: "4px",
+                  background: stat.gradient,
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text"
+                }}>
+                  {stat.value}
+                </div>
+                <div style={{ fontSize: "11px", color: "rgba(0, 0, 0, 0.5)", fontWeight: "500" }}>
+                  {stat.label}
+                </div>
+              </div>
             </div>
-            <div style={{ fontSize: "12px", opacity: 0.9 }}>km total</div>
-          </div>
-          
-          <div style={{ 
-            padding: "20px", 
-            background: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
-            borderRadius: "12px",
-            color: "white",
-            boxShadow: "0 4px 12px rgba(79,172,254,0.3)"
-          }}>
-            <div style={{ fontSize: "32px", fontWeight: "bold", marginBottom: "4px" }}>
-              {stats.totalRuns}
-            </div>
-            <div style={{ fontSize: "12px", opacity: 0.9 }}>runs</div>
-          </div>
-          
-          <div style={{ 
-            padding: "20px", 
-            background: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
-            borderRadius: "12px",
-            color: "white",
-            boxShadow: "0 4px 12px rgba(67,233,123,0.3)"
-          }}>
-            <div style={{ fontSize: "32px", fontWeight: "bold", marginBottom: "4px" }}>
-              {stats.avgPace}
-            </div>
-            <div style={{ fontSize: "12px", opacity: 0.9 }}>avg pace /km</div>
-          </div>
-          
-          <div style={{ 
-            padding: "20px", 
-            background: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
-            borderRadius: "12px",
-            color: "white",
-            boxShadow: "0 4px 12px rgba(250,112,154,0.3)"
-          }}>
-            <div style={{ fontSize: "32px", fontWeight: "bold", marginBottom: "4px" }}>
-              {stats.totalTime}
-            </div>
-            <div style={{ fontSize: "12px", opacity: 0.9 }}>minutes</div>
-          </div>
+          ))}
         </div>
 
         {/* Recent Runs */}
         {runs.length > 0 && (
-          <div>
-            <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "12px", color: "#333" }}>
-              Recent Runs
+          <div style={{ position: "relative" as const }}>
+            <h3 style={{ 
+              fontSize: "13px", 
+              fontWeight: "600", 
+              marginBottom: "16px", 
+              color: "rgba(0, 0, 0, 0.6)",
+              textTransform: "uppercase" as const,
+              letterSpacing: "0.5px"
+            }}>
+              Recent Activity
             </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div style={{ display: "flex", flexDirection: "column" as const, gap: "8px" }}>
               {runs.slice(0, 5).map((run, i) => (
                 <div
                   key={i}
                   style={{
-                    padding: "16px",
-                    background: "#f8f9fa",
-                    borderRadius: "10px",
+                    padding: "16px 20px",
+                    background: "rgba(255, 255, 255, 0.3)",
+                    backdropFilter: "blur(10px)",
+                    borderRadius: "12px",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    fontSize: "14px",
-                    border: "1px solid #e9ecef",
-                    transition: "all 0.2s",
-                    cursor: "default"
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "#e9ecef";
-                    e.currentTarget.style.transform = "translateX(4px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "#f8f9fa";
-                    e.currentTarget.style.transform = "translateX(0)";
+                    fontSize: "13px",
+                    border: "1px solid rgba(255, 255, 255, 0.2)",
+                    transition: "all 0.2s ease"
                   }}
                 >
-                  <span style={{ fontWeight: "500", color: "#495057" }}>{run.date}</span>
-                  <span style={{ color: "#6c757d" }}>
-                    {run.distance} km • {run.pace}/km • {run.duration} min
+                  <span style={{ fontWeight: "600", color: "rgba(0, 0, 0, 0.7)" }}>
+                    {run.date}
+                  </span>
+                  <span style={{ 
+                    color: "rgba(0, 0, 0, 0.5)", 
+                    fontSize: "12px",
+                    fontFamily: "ui-monospace, monospace"
+                  }}>
+                    {run.distance}km • {run.pace}/km • {run.duration}min
                   </span>
                 </div>
               ))}
