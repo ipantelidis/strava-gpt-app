@@ -282,9 +282,15 @@ if (env !== "production") {
 if (env === "production") {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
+  const assetsPath = path.join(__dirname, "assets", "assets");
+  
+  console.log("Production mode - serving assets from:", assetsPath);
 
+  // Serve widget assets with CORS enabled
+  // The build process creates assets in dist/assets/assets/
+  // We need to serve that nested directory at /assets/ to match the manifest paths
   app.use("/assets", cors());
-  app.use("/assets", express.static(path.join(__dirname, "assets")));
+  app.use("/assets", express.static(assetsPath));
 }
 
 app.listen(3000, (error) => {
