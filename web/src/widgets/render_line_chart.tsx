@@ -5,6 +5,7 @@ import {
   applyGlassmorphism,
   createGradientOverlay,
 } from "../design-system";
+import { ErrorBoundary } from "../ErrorBoundary";
 import {
   LineChart,
   Line,
@@ -38,7 +39,7 @@ interface ChartConfig {
   seriesNames?: string[];
 }
 
-export default function RenderLineChart() {
+function RenderLineChartContent() {
   const toolInfo = useToolInfo<"render_line_chart">();
 
   if (toolInfo.isPending) {
@@ -94,6 +95,21 @@ export default function RenderLineChart() {
     data: DataPoint[];
     config?: ChartConfig;
   };
+
+  // Graceful degradation: handle missing or invalid data
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    return (
+      <div style={{ padding: DesignSystem.spacing.card, textAlign: "center" }}>
+        <div style={{ fontSize: "40px", marginBottom: DesignSystem.spacing.compact }}>📊</div>
+        <p style={{ margin: 0, color: DesignSystem.colors.semantic.decline, fontSize: "14px" }}>
+          No data available to display
+        </p>
+        <p style={{ margin: 0, marginTop: DesignSystem.spacing.compact, color: "rgba(0, 0, 0, 0.5)", fontSize: "12px" }}>
+          The chart requires data points to render. Please provide valid data.
+        </p>
+      </div>
+    );
+  }
 
   // Transform data for Recharts
   const chartData = data.map((point) => {
@@ -400,5 +416,14 @@ export default function RenderLineChart() {
         )}
       </div>
     </div>
+  );
+}
+
+
+export default function RenderLineChart() {
+  return (
+    <ErrorBoundary widgetName="render_line_chart">
+      <RenderLineChartContent />
+    </ErrorBoundary>
   );
 }

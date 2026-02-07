@@ -138,8 +138,99 @@
 
 ## Tools and Widgets
 
-### Widget: `get_training_summary`
-- **Input**: `{ days?: number }` (default: 7)
+### Architecture Overview
+
+The app uses a **three-layer architecture** for flexible GPT orchestration:
+
+1. **Data Tools** - Fetch and process data (no UI) - Returns structured JSON for GPT reasoning
+2. **Visualization Widgets** - Render data in various formats (no data fetching) - Accepts data + config
+3. **Integrated Widgets** - Combine data fetching + visualization for common use cases - Fastest for typical queries
+
+**Decision Framework**:
+- **Common queries** (80% case) → Use **Integrated Widgets** (fastest, best UX)
+- **Custom analysis** (20% long tail) → Compose **Data Tools + Visualization Widgets**
+
+See [GPT Orchestration Guide](docs/GPT_ORCHESTRATION_GUIDE.md) for detailed orchestration patterns.
+
+### Data Tools (No UI)
+
+#### Tool: `fetch_activities`
+- **Purpose**: Fetch raw Strava running activities with configurable detail level
+- **Input**: `{ days?: number, includeDetails?: boolean, token?: string }`
+- **Output**: Array of activities with metrics (distance, pace, elevation, time, splits, HR, GPS)
+- **Use for**: Custom analysis, flexible data access, building custom visualizations
+- **Example queries**: "Fetch my last 30 days", "Get activities with heart rate data"
+
+#### Tool: `get_run_comparison`
+- **Purpose**: Compare two specific runs side-by-side
+- **Input**: `{ run1Id: number, run2Id: number, token?: string }`
+- **Output**: Comparison data with aligned metrics, deltas, and trend analysis
+- **Use for**: Analyzing performance differences between two specific activities
+- **Example queries**: "Compare run X to run Y", "Show difference between these activities"
+
+#### Tool: `calculate_pace_distribution`
+- **Purpose**: Analyze pace distribution across activities
+- **Input**: `{ days?: number, groupBy: "runType" | "distanceRange", token?: string }`
+- **Output**: Grouped pace statistics (mean, median, std dev) by run type or distance
+- **Use for**: Understanding pace patterns, comparing easy vs hard vs long run paces
+- **Example queries**: "How does my pace vary by run type?", "Show pace distribution"
+
+#### Tool: `analyze_elevation_impact`
+- **Purpose**: Calculate pace adjustments based on elevation gain
+- **Input**: `{ days?: number, token?: string }`
+- **Output**: Elevation-adjusted pace for each run with adjustment calculations
+- **Use for**: Understanding terrain impact, comparing hilly vs flat runs
+- **Example queries**: "How does elevation affect my pace?", "What's my flat-equivalent pace?"
+
+#### Tool: `compute_training_load`
+- **Purpose**: Calculate training load metrics (acute, chronic, ratio)
+- **Input**: `{ days?: number, token?: string }`
+- **Output**: Load metrics including acute (7d), chronic (28d), and acute:chronic ratio
+- **Use for**: Assessing training volume, injury risk, load trends
+- **Example queries**: "What's my training load?", "Am I at risk of injury?"
+
+### Visualization Widgets (No Data Fetching)
+
+#### Widget: `render_line_chart`
+- **Purpose**: Display time series data as a line chart
+- **Input**: `{ data: Array<{x, y, series?}>, config?: {...} }`
+- **Use for**: Pace progression, distance over time, heart rate trends
+- **Workflow**: Data tool → Transform in GPT → This widget
+- **Example queries**: "Show my pace over time", "Chart weekly distance"
+
+#### Widget: `render_scatter_plot`
+- **Purpose**: Visualize relationships between two variables
+- **Input**: `{ data: Array<{x, y, category?}>, config?: {...} }`
+- **Use for**: Distance vs pace, elevation vs heart rate, metric correlations
+- **Workflow**: Data tool → Transform in GPT → This widget
+- **Example queries**: "Show distance vs pace", "Plot elevation vs heart rate"
+
+#### Widget: `render_comparison_card`
+- **Purpose**: Side-by-side comparison with delta indicators
+- **Input**: `{ data: RunComparison, config?: {...} }`
+- **Use for**: Visualizing run-to-run performance differences
+- **Workflow**: get_run_comparison → This widget
+- **Example queries**: "Visualize comparison of two runs"
+
+#### Widget: `render_heatmap`
+- **Purpose**: Calendar heatmap showing activity frequency/intensity
+- **Input**: `{ data: Array<{date, intensity, details?}>, config?: {...} }`
+- **Use for**: Training consistency, activity patterns, rest days
+- **Workflow**: fetch_activities → Transform in GPT → This widget
+- **Example queries**: "Show training consistency", "Visualize activity calendar"
+
+#### Widget: `render_distribution`
+- **Purpose**: Box plot or histogram for metric distributions
+- **Input**: `{ data: Array<number>, config: {type: "box" | "histogram", ...} }`
+- **Use for**: Pace distribution, heart rate zones, distance patterns
+- **Workflow**: Data tool → Extract metrics in GPT → This widget
+- **Example queries**: "Show pace distribution", "Visualize heart rate zones"
+
+### Integrated Widgets (Data + Visualization)
+
+#### Widget: `get_training_summary`
+- **Purpose**: Analyze recent running activities (INTEGRATED: data + UI)
+- **Input**: `{ days?: number, token?: string }` (default: 7)
 - **Output**: 
   ```typescript
   {
@@ -160,11 +251,14 @@
     encouragement: string     // LLM-generated encouragement
   }
   ```
+- **Use for**: Quick training overview, "How's my training?", "Summarize my week"
+- **Faster than**: fetch_activities + manual analysis
 - **Views**: Single view showing stats card with runs list
 - **Behavior**: Fetches recent Strava activities, displays summary with coaching insights
 
 ### Widget: `compare_training_weeks`
-- **Input**: `{ currentWeekStart?: string }` (defaults to current week)
+- **Purpose**: Compare training weeks (INTEGRATED: data + UI)
+- **Input**: `{ currentWeekStart?: string, token?: string }` (defaults to current week)
 - **Output**:
   ```typescript
   {
@@ -187,11 +281,14 @@
     analysis: string               // LLM-generated analysis
   }
   ```
+- **Use for**: Week-over-week comparison, "Am I improving?", "Compare this week to last"
+- **Faster than**: fetch_activities + manual comparison
 - **Views**: Side-by-side comparison with trend indicators (↑↓)
 - **Behavior**: Fetches last 2 weeks of activities, calculates deltas and trends
 
 ### Widget: `get_coaching_advice`
-- **Input**: `{ context?: string }` (optional: "recovery", "intensity", etc.)
+- **Purpose**: Get personalized coaching advice (INTEGRATED: data + analysis)
+- **Input**: `{ context?: string, token?: string }` (optional: "recovery", "intensity", etc.)
 - **Output**:
   ```typescript
   {
@@ -208,13 +305,84 @@
     trainingState: "fresh" | "building" | "fatigued" | "recovering"
   }
   ```
+- **Use for**: Training load assessment, "What should I do next?", "Am I overdoing it?"
+- **Faster than**: compute_training_load + manual reasoning
 - **Views**: Single card with recommendation and reasoning
 - **Behavior**: Analyzes recent training load, provides actionable next-step advice
 
-### Tool: `refresh_strava_data`
-- **Input**: `{ forceRefresh?: boolean }`
-- **Output**: `{ success: boolean, lastSync: string }`
-- **Purpose**: Manually refresh Strava data if needed (widgets can call this internally)
+### Widget: `analyze_run_progression`
+- **Purpose**: Analyze performance progression on a specific route (INTEGRATED: data + visualization)
+- **Input**: `{ polyline?: string, routeName?: string, days?: number, token?: string }`
+- **Output**:
+  ```typescript
+  {
+    route: {
+      identifier: string,
+      matchedActivities: number,
+      averageDistance: number
+    },
+    progression: Array<{
+      id: number,
+      name: string,
+      date: string,
+      distance: number,
+      pace: string,
+      paceSeconds: number,
+      duration: number,
+      elevation: number,
+      heartRate?: number
+    }>,
+    summary: {
+      totalRuns: number,
+      bestPace: string,
+      worstPace: string,
+      averagePace: string,
+      improvement: number,      // percentage
+      improvementSeconds: number,
+      trend: "improving" | "declining" | "stable",
+      dateRange: { first: string, last: string }
+    }
+  }
+  ```
+- **Use for**: Route-specific progression, "How am I improving on [route]?", "Track performance on this route"
+- **Faster than**: fetch_activities + route matching + progression analysis + chart
+- **Views**: Progression chart with best/worst/average performances
+- **Behavior**: Fetches activities, matches route (by name or polyline), calculates progression
+
+### Tool: `exchange_strava_code`
+- **Purpose**: Exchange Strava authorization code for access token
+- **Input**: `{ code: string }`
+- **Output**: `{ access_token: string, refresh_token: string, expires_at: number, athlete: {...} }`
+- **Use for**: Initial authorization, token refresh
+- **Behavior**: Exchanges authorization code for access token via Strava OAuth2 flow
+
+---
+
+## Orchestration Patterns
+
+### Pattern 1: Integrated Widget (Fast Path)
+```
+User: "How's my training?"
+→ get_training_summary (single call, complete UI)
+```
+
+### Pattern 2: Data Tool + Visualization (Flexible Path)
+```
+User: "Show me pace vs elevation"
+→ analyze_elevation_impact (get data)
+→ Transform in GPT to [{x: elevation, y: pace}]
+→ render_scatter_plot (visualize)
+```
+
+### Pattern 3: Data Tool + Reasoning (Analysis Path)
+```
+User: "What's my acute:chronic ratio?"
+→ compute_training_load (get metrics)
+→ GPT reasons about the ratio
+→ Provide interpretation
+```
+
+See [GPT Orchestration Guide](docs/GPT_ORCHESTRATION_GUIDE.md) for complete patterns and decision framework.
 
 ---
 

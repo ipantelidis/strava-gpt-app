@@ -1,10 +1,11 @@
 import { generateHelpers } from "skybridge/web";
 import type { AppType } from "../../../server/src/server";
 import { DesignSystem, applyGradientText, createGradientOverlay } from "../design-system";
+import { ErrorBoundary } from "../ErrorBoundary";
 
 const { useToolInfo } = generateHelpers<AppType>();
 
-export default function TrainingSummary() {
+function TrainingSummaryContent() {
   const toolInfo = useToolInfo<"get_training_summary">();
 
   if (toolInfo.isPending) {
@@ -30,15 +31,30 @@ export default function TrainingSummary() {
   // Debug: log what we're getting
   console.log("Widget data:", { period, stats, runs });
 
-  // Safety check
+  // Safety check - graceful degradation for missing data
   if (!stats || !period) {
     return (
       <div style={{ padding: DesignSystem.spacing.card, textAlign: "center" }}>
         <div style={{ fontSize: "40px", marginBottom: DesignSystem.spacing.compact }}>⚠️</div>
-        <p style={{ margin: 0, color: DesignSystem.colors.semantic.decline, fontSize: "14px" }}>No training data available</p>
+        <p style={{ margin: 0, color: DesignSystem.colors.semantic.decline, fontSize: "14px" }}>
+          No training data available
+        </p>
+        <p style={{ margin: 0, marginTop: DesignSystem.spacing.compact, color: "rgba(0, 0, 0, 0.5)", fontSize: "12px" }}>
+          This may be due to missing data from Strava or an incomplete response.
+        </p>
       </div>
     );
   }
+
+  // Handle missing optional fields with defaults
+  const safeStats = {
+    totalDistance: stats.totalDistance ?? 0,
+    totalRuns: stats.totalRuns ?? 0,
+    avgPace: stats.avgPace ?? "0:00",
+    totalTime: stats.totalTime ?? 0,
+  };
+
+  const safeRuns = Array.isArray(runs) ? runs : [];
 
   return (
     <div style={{ 
@@ -95,10 +111,10 @@ export default function TrainingSummary() {
           position: "relative" as const
         }}>
           {[
-            { value: stats.totalDistance, label: "km total", gradient: DesignSystem.colors.gradients.primary },
-            { value: stats.totalRuns, label: "runs", gradient: DesignSystem.colors.gradients.secondary },
-            { value: stats.avgPace, label: "avg pace /km", gradient: DesignSystem.colors.gradients.tertiary },
-            { value: stats.totalTime, label: "minutes", gradient: DesignSystem.colors.gradients.quaternary }
+            { value: safeStats.totalDistance, label: "km total", gradient: DesignSystem.colors.gradients.primary },
+            { value: safeStats.totalRuns, label: "runs", gradient: DesignSystem.colors.gradients.secondary },
+            { value: safeStats.avgPace, label: "avg pace /km", gradient: DesignSystem.colors.gradients.tertiary },
+            { value: safeStats.totalTime, label: "minutes", gradient: DesignSystem.colors.gradients.quaternary }
           ].map((stat, i) => (
             <div key={i} style={{ 
               padding: DesignSystem.spacing.section, 
@@ -129,7 +145,7 @@ export default function TrainingSummary() {
         </div>
 
         {/* Recent Runs */}
-        {runs.length > 0 && (
+        {safeRuns.length > 0 && (
           <div style={{ position: "relative" as const }}>
             <h3 style={{ 
               fontSize: "13px", 
@@ -142,7 +158,7 @@ export default function TrainingSummary() {
               Recent Activity
             </h3>
             <div style={{ display: "flex", flexDirection: "column" as const, gap: DesignSystem.spacing.compact }}>
-              {runs.slice(0, 5).map((run: any, i: number) => (
+              {safeRuns.slice(0, 5).map((run: any, i: number) => (
                 <div
                   key={i}
                   style={{
@@ -159,14 +175,14 @@ export default function TrainingSummary() {
                   }}
                 >
                   <span style={{ fontWeight: "600", color: "rgba(0, 0, 0, 0.7)" }}>
-                    {run.date}
+                    {run.date ?? "Unknown date"}
                   </span>
                   <span style={{ 
                     color: "rgba(0, 0, 0, 0.5)", 
                     fontSize: "12px",
                     fontFamily: "ui-monospace, monospace"
                   }}>
-                    {run.distance}km • {run.pace}/km • {run.duration}min
+                    {run.distance ?? "0"}km • {run.pace ?? "0:00"}/km • {run.duration ?? "0"}min
                   </span>
                 </div>
               ))}
@@ -175,5 +191,13 @@ export default function TrainingSummary() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function TrainingSummary() {
+  return (
+    <ErrorBoundary widgetName="get_training_summary">
+      <TrainingSummaryContent />
+    </ErrorBoundary>
   );
 }

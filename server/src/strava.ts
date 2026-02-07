@@ -47,6 +47,28 @@ export class UnauthorizedError extends Error {
 }
 
 /**
+ * Custom error class for 429 Rate Limit responses
+ */
+export class RateLimitError extends Error {
+  public retryAfter?: number;
+  public limit?: number;
+  public usage?: number;
+
+  constructor(
+    message: string = "Strava API rate limit exceeded",
+    retryAfter?: number,
+    limit?: number,
+    usage?: number
+  ) {
+    super(message);
+    this.name = "RateLimitError";
+    this.retryAfter = retryAfter;
+    this.limit = limit;
+    this.usage = usage;
+  }
+}
+
+/**
  * Fetch recent activities from Strava
  */
 export async function fetchRecentActivities(
@@ -72,6 +94,20 @@ export async function fetchRecentActivities(
   // Detect 401 Unauthorized errors
   if (res.status === 401) {
     throw new UnauthorizedError("Strava API returned 401 Unauthorized - token is invalid or expired");
+  }
+
+  // Detect 429 Rate Limit errors
+  if (res.status === 429) {
+    const retryAfter = res.headers.get("Retry-After");
+    const limit = res.headers.get("X-RateLimit-Limit");
+    const usage = res.headers.get("X-RateLimit-Usage");
+    
+    throw new RateLimitError(
+      "Strava API rate limit exceeded",
+      retryAfter ? parseInt(retryAfter, 10) : undefined,
+      limit ? parseInt(limit, 10) : undefined,
+      usage ? parseInt(usage, 10) : undefined
+    );
   }
 
   if (!res.ok) {
@@ -101,6 +137,20 @@ export async function fetchDetailedActivity(
   // Detect 401 Unauthorized errors
   if (res.status === 401) {
     throw new UnauthorizedError("Strava API returned 401 Unauthorized - token is invalid or expired");
+  }
+
+  // Detect 429 Rate Limit errors
+  if (res.status === 429) {
+    const retryAfter = res.headers.get("Retry-After");
+    const limit = res.headers.get("X-RateLimit-Limit");
+    const usage = res.headers.get("X-RateLimit-Usage");
+    
+    throw new RateLimitError(
+      "Strava API rate limit exceeded",
+      retryAfter ? parseInt(retryAfter, 10) : undefined,
+      limit ? parseInt(limit, 10) : undefined,
+      usage ? parseInt(usage, 10) : undefined
+    );
   }
 
   if (!res.ok) {

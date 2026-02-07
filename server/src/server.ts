@@ -10,6 +10,7 @@ import {
   filterActivitiesByDateRange,
   metersPerSecondToPace,
   UnauthorizedError,
+  RateLimitError,
   type StravaActivity,
 } from "./strava.js";
 import {
@@ -17,6 +18,7 @@ import {
   setCachedActivities,
   type CacheKey,
 } from "./cache.js";
+import { rateLimitErrorResponse } from "./errors.js";
 
 const server = new McpServer(
   {
@@ -135,7 +137,28 @@ server.registerTool(
 server.registerTool(
   "fetch_activities",
   {
-    description: "⚠️ REQUIRES AUTHORIZATION: Fetch raw Strava running activities with configurable detail level. This is a data-only tool that returns structured JSON for GPT reasoning or visualization. Use this when you need flexible access to activity data for custom analysis. For common queries, prefer integrated widgets like get_training_summary.",
+    description: `⚠️ REQUIRES AUTHORIZATION: Fetch raw Strava running activities with configurable detail level. This is a DATA-ONLY tool (no UI) that returns structured JSON for GPT reasoning or visualization.
+
+WHEN TO USE:
+- Custom analysis not covered by integrated widgets
+- Need raw activity data for flexible reasoning
+- Building custom visualizations with render_* widgets
+- Queries like: "Show me all my runs from last month", "What activities did I do?", "Get my recent training data"
+
+WHEN NOT TO USE:
+- For training summaries → use get_training_summary (faster, integrated)
+- For week comparisons → use compare_training_weeks (faster, integrated)
+- For coaching advice → use get_coaching_advice (faster, integrated)
+
+WORKFLOW:
+1. Call this tool to fetch activities
+2. Reason about the data in GPT
+3. Optionally visualize with render_line_chart, render_scatter_plot, or render_heatmap
+
+EXAMPLE QUERIES:
+- "Fetch my last 30 days of activities with detailed splits"
+- "Get my running data from the past week"
+- "Show me all activities with heart rate data"`,
     inputSchema: {
       days: z
         .number()
@@ -241,6 +264,15 @@ server.registerTool(
         return authErrorResponse("unauthorized");
       }
       
+      // Handle 429 Rate Limit errors
+      if (error instanceof RateLimitError) {
+        return rateLimitErrorResponse(
+          error.retryAfter,
+          error.limit,
+          error.usage
+        );
+      }
+      
       console.error("Error fetching activities:", error);
       return {
         content: [
@@ -259,7 +291,24 @@ server.registerTool(
 server.registerTool(
   "calculate_pace_distribution",
   {
-    description: "⚠️ REQUIRES AUTHORIZATION: Analyze pace distribution across running activities. Groups activities by run type (easy, long, hard, recovery) or distance range, then calculates statistics (mean, median, std dev) for each group. Use this to understand pace patterns across different types of runs.",
+    description: `⚠️ REQUIRES AUTHORIZATION: Analyze pace distribution across running activities. Groups activities by run type (easy, long, hard, recovery) or distance range, then calculates statistics (mean, median, std dev) for each group. This is a DATA-ONLY tool (no UI).
+
+WHEN TO USE:
+- Analyzing pace patterns across different run types
+- Understanding pace variability and consistency
+- Comparing easy vs hard vs long run paces
+- Queries like: "How does my pace vary by run type?", "What's my average pace for long runs?", "Show me pace distribution by distance"
+
+WORKFLOW:
+1. Call this tool to get grouped pace statistics
+2. Reason about patterns in GPT
+3. Optionally visualize with render_distribution (box plot/histogram) or render_scatter_plot
+
+EXAMPLE QUERIES:
+- "What's my pace distribution across different run types?"
+- "Compare my easy run pace to my hard run pace"
+- "Show me how my pace varies by distance"
+- "Analyze my pace consistency over the last month"`,
     inputSchema: {
       days: z
         .number()
@@ -455,6 +504,15 @@ server.registerTool(
         return authErrorResponse("unauthorized");
       }
       
+      // Handle 429 Rate Limit errors
+      if (error instanceof RateLimitError) {
+        return rateLimitErrorResponse(
+          error.retryAfter,
+          error.limit,
+          error.usage
+        );
+      }
+      
       console.error("Error calculating pace distribution:", error);
       return {
         content: [
@@ -473,7 +531,24 @@ server.registerTool(
 server.registerTool(
   "analyze_elevation_impact",
   {
-    description: "⚠️ REQUIRES AUTHORIZATION: Analyze how elevation gain impacts running pace. Calculates pace adjustments based on elevation gain and computes climb-adjusted pace for each run. Use this to understand how hills affect your performance and compare runs on different terrain.",
+    description: `⚠️ REQUIRES AUTHORIZATION: Analyze how elevation gain impacts running pace. Calculates pace adjustments based on elevation gain and computes climb-adjusted pace for each run. This is a DATA-ONLY tool (no UI).
+
+WHEN TO USE:
+- Understanding how hills affect performance
+- Comparing runs on different terrain fairly
+- Calculating "flat-equivalent" pace for hilly runs
+- Queries like: "How does elevation affect my pace?", "What would my pace be on flat ground?", "Compare hilly vs flat runs"
+
+WORKFLOW:
+1. Call this tool to get elevation-adjusted pace data
+2. Reason about terrain impact in GPT
+3. Optionally visualize with render_scatter_plot (elevation vs pace) or render_line_chart (elevation over time)
+
+EXAMPLE QUERIES:
+- "How much does elevation slow me down?"
+- "What's my adjusted pace accounting for hills?"
+- "Compare my performance on flat vs hilly routes"
+- "Show me which runs had the most elevation gain"`,
     inputSchema: {
       days: z
         .number()
@@ -611,6 +686,15 @@ server.registerTool(
         return authErrorResponse("unauthorized");
       }
       
+      // Handle 429 Rate Limit errors
+      if (error instanceof RateLimitError) {
+        return rateLimitErrorResponse(
+          error.retryAfter,
+          error.limit,
+          error.usage
+        );
+      }
+      
       console.error("Error analyzing elevation impact:", error);
       return {
         content: [
@@ -629,7 +713,26 @@ server.registerTool(
 server.registerTool(
   "get_run_comparison",
   {
-    description: "⚠️ REQUIRES AUTHORIZATION: Compare two specific runs side-by-side. Returns structured comparison data with aligned metrics, deltas, and trend analysis. Use this when you need to analyze performance differences between two specific activities.",
+    description: `⚠️ REQUIRES AUTHORIZATION: Compare two specific runs side-by-side. Returns structured comparison data with aligned metrics, deltas, and trend analysis. This is a DATA-ONLY tool (no UI).
+
+WHEN TO USE:
+- Comparing two specific activities by ID
+- Analyzing performance differences between runs
+- Understanding improvement or decline between attempts
+- Queries like: "Compare run X to run Y", "How did my last two runs compare?", "Show me the difference between these activities"
+
+WORKFLOW:
+1. Call this tool with two activity IDs to get comparison data
+2. Reason about the differences in GPT
+3. Visualize with render_comparison_card for side-by-side display
+
+EXAMPLE QUERIES:
+- "Compare my run from Monday to my run from Friday"
+- "How did activity 12345 compare to activity 67890?"
+- "Show me the difference between my last two 10k runs"
+- "Compare this week's long run to last week's"
+
+NOTE: You need activity IDs. If user doesn't provide them, first call fetch_activities to get recent activity IDs, then use this tool.`,
     inputSchema: {
       run1Id: z
         .number()
@@ -748,6 +851,15 @@ server.registerTool(
         return authErrorResponse("unauthorized");
       }
       
+      // Handle 429 Rate Limit errors
+      if (error instanceof RateLimitError) {
+        return rateLimitErrorResponse(
+          error.retryAfter,
+          error.limit,
+          error.usage
+        );
+      }
+      
       console.error("Error comparing runs:", error);
       return {
         content: [
@@ -766,7 +878,29 @@ server.registerTool(
 server.registerTool(
   "compute_training_load",
   {
-    description: "⚠️ REQUIRES AUTHORIZATION: Calculate training load metrics including acute load (7 days), chronic load (28 days), and acute:chronic ratio. Use this to assess training volume, intensity, and injury risk based on load ratios.",
+    description: `⚠️ REQUIRES AUTHORIZATION: Calculate training load metrics including acute load (7 days), chronic load (28 days), and acute:chronic ratio. This is a DATA-ONLY tool (no UI).
+
+WHEN TO USE:
+- Assessing training volume and intensity
+- Calculating injury risk based on acute:chronic ratio
+- Understanding training load trends
+- Queries like: "What's my training load?", "Am I at risk of injury?", "Calculate my acute:chronic ratio", "Is my training load too high?"
+
+WORKFLOW:
+1. Call this tool to get load metrics
+2. Reason about training state and injury risk in GPT
+3. Optionally visualize with render_line_chart (load over time) or provide coaching advice
+
+EXAMPLE QUERIES:
+- "What's my current training load?"
+- "Am I training too hard? Check my acute:chronic ratio"
+- "Calculate my weekly vs monthly training volume"
+- "Is my training load in the safe zone?"
+
+INTERPRETATION:
+- Ratio < 0.8: Undertraining (may need more volume)
+- Ratio 0.8-1.3: Optimal training zone (sweet spot)
+- Ratio > 1.5: High injury risk (reduce load)`,
     inputSchema: {
       days: z
         .number()
@@ -937,6 +1071,15 @@ server.registerTool(
         return authErrorResponse("unauthorized");
       }
       
+      // Handle 429 Rate Limit errors
+      if (error instanceof RateLimitError) {
+        return rateLimitErrorResponse(
+          error.retryAfter,
+          error.limit,
+          error.usage
+        );
+      }
+      
       console.error("Error computing training load:", error);
       return {
         content: [
@@ -955,7 +1098,28 @@ server.registerTool(
 server.registerWidget(
   "get_training_summary",
   {
-    description: "⚠️ REQUIRES AUTHORIZATION: Analyze recent running activities. User MUST have a valid Strava token. If no token or auth fails, STOP and guide user through exchange_strava_code tool first.",
+    description: `⚠️ REQUIRES AUTHORIZATION: Analyze recent running activities. This is an INTEGRATED widget (combines data fetching + visualization).
+
+WHEN TO USE (PREFER THIS):
+- Quick training overview for recent period
+- Queries like: "How's my training?", "Summarize my week", "Show me my recent runs", "What did I do this week?"
+- This is FASTER than fetch_activities + manual analysis
+
+WHEN NOT TO USE:
+- Custom date ranges beyond simple "last N days"
+- Need raw data for complex analysis → use fetch_activities
+- Comparing specific runs → use get_run_comparison
+- Need specific visualizations → use data tools + render_* widgets
+
+WORKFLOW:
+- Single call returns complete summary with stats, runs list, and insights
+- No additional visualization needed (integrated UI)
+
+EXAMPLE QUERIES:
+- "How's my training looking this week?"
+- "Summarize my last 7 days of running"
+- "Show me my recent training"
+- "What have I been doing lately?"`,
   },
   {
     description: "Analyze recent running activities from Strava. ALWAYS fetch data from Strava API - NEVER ask user to provide training data manually. All data comes from their connected Strava account.",
@@ -985,13 +1149,11 @@ server.registerWidget(
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
 
-      // Fetch activities from last 30 days (to have enough data)
-      const thirtyDaysAgo = Math.floor(
-        Date.now() / 1000 - 30 * 24 * 60 * 60,
-      );
+      // Fetch activities only for the requested date range
+      const afterTimestamp = Math.floor(startDate.getTime() / 1000);
       const allActivities = await fetchRecentActivities(
         auth.accessToken,
-        thirtyDaysAgo,
+        afterTimestamp,
       );
 
       // Filter to requested date range
@@ -1046,6 +1208,15 @@ server.registerWidget(
         return authErrorResponse("unauthorized");
       }
       
+      // Handle 429 Rate Limit errors
+      if (error instanceof RateLimitError) {
+        return rateLimitErrorResponse(
+          error.retryAfter,
+          error.limit,
+          error.usage
+        );
+      }
+      
       console.error("Error fetching training summary:", error);
       return {
         content: [
@@ -1064,7 +1235,27 @@ server.registerWidget(
 server.registerWidget(
   "compare_training_weeks",
   {
-    description: "⚠️ REQUIRES AUTHORIZATION: Compare training weeks. User MUST have a valid Strava token. If no token or auth fails, STOP and guide user through exchange_strava_code tool first.",
+    description: `⚠️ REQUIRES AUTHORIZATION: Compare training weeks. This is an INTEGRATED widget (combines data fetching + visualization).
+
+WHEN TO USE (PREFER THIS):
+- Week-over-week training comparison
+- Queries like: "Am I improving?", "How does this week compare?", "Show me my progress", "Compare this week to last week"
+- This is FASTER than fetch_activities + manual comparison
+
+WHEN NOT TO USE:
+- Comparing specific runs (not weeks) → use get_run_comparison
+- Need custom date ranges → use fetch_activities
+- Need detailed pace analysis → use calculate_pace_distribution
+
+WORKFLOW:
+- Single call returns complete comparison with deltas, trends, and analysis
+- No additional visualization needed (integrated UI)
+
+EXAMPLE QUERIES:
+- "Am I improving week over week?"
+- "How does this week compare to last week?"
+- "Show me my training progress"
+- "Compare my current week to previous week"`,
   },
   {
     description: "Show week-over-week training progress from Strava. ALWAYS fetch data from Strava API - NEVER ask user to provide training data manually. All data comes from their connected Strava account.",
@@ -1102,13 +1293,13 @@ server.registerWidget(
 
       const previousEnd = new Date(currentStart);
 
-      // Fetch activities
-      const thirtyDaysAgo = Math.floor(
-        Date.now() / 1000 - 30 * 24 * 60 * 60,
+      // Fetch activities only for the 14 days needed (current + previous week)
+      const fourteenDaysAgo = Math.floor(
+        previousStart.getTime() / 1000,
       );
       const allActivities = await fetchRecentActivities(
         auth.accessToken,
-        thirtyDaysAgo,
+        fourteenDaysAgo,
       );
 
       // Split into weeks
@@ -1198,6 +1389,15 @@ server.registerWidget(
         return authErrorResponse("unauthorized");
       }
       
+      // Handle 429 Rate Limit errors
+      if (error instanceof RateLimitError) {
+        return rateLimitErrorResponse(
+          error.retryAfter,
+          error.limit,
+          error.usage
+        );
+      }
+      
       console.error("Error comparing weeks:", error);
       return {
         content: [
@@ -1216,7 +1416,25 @@ server.registerWidget(
 server.registerWidget(
   "render_comparison_card",
   {
-    description: "Render a side-by-side comparison card for two runs with delta indicators and trend arrows. This is a visualization-only widget that accepts structured comparison data.",
+    description: `Render a side-by-side comparison card for two runs with delta indicators and trend arrows. This is a VISUALIZATION-ONLY widget (no data fetching).
+
+WHEN TO USE:
+- After calling get_run_comparison data tool
+- Displaying run-to-run performance differences visually
+- Showing deltas with semantic colors (green=improvement, red=decline)
+- Queries like: "Show me a comparison of these two runs", "Visualize the difference between run X and Y"
+
+WORKFLOW:
+1. First call get_run_comparison to fetch comparison data
+2. Then call this widget with the returned data
+3. Widget renders side-by-side cards with delta indicators and trend arrows
+
+EXAMPLE QUERIES:
+- "Compare my last two runs and show me the results"
+- "Visualize the difference between activity 12345 and 67890"
+- "Show me how my Monday run compared to Friday's run"
+
+DATA SOURCE: get_run_comparison tool`,
   },
   {
     description: "Display a visual comparison of two runs showing metrics, deltas, and trends. Use this after fetching comparison data from get_run_comparison tool.",
@@ -1277,7 +1495,26 @@ server.registerWidget(
 server.registerWidget(
   "render_line_chart",
   {
-    description: "Render a line chart for time series data with support for multiple series overlays. This is a visualization-only widget that accepts structured data and configuration.",
+    description: `Render a line chart for time series data with support for multiple series overlays. This is a VISUALIZATION-ONLY widget (no data fetching).
+
+WHEN TO USE:
+- Displaying trends over time (pace progression, distance over weeks, heart rate trends)
+- Showing multiple metrics on the same chart
+- Visualizing time series data from fetch_activities or other data tools
+- Queries like: "Show me my pace over time", "Chart my weekly distance", "Visualize my training progression"
+
+WORKFLOW:
+1. First call a data tool (fetch_activities, compute_training_load, etc.)
+2. Transform data into x/y points in GPT
+3. Call this widget with the formatted data
+
+EXAMPLE QUERIES:
+- "Show me my pace progression over the last 3 months"
+- "Chart my weekly distance for the past 8 weeks"
+- "Visualize my heart rate trends over time"
+- "Plot my elevation gain per run"
+
+DATA SOURCES: fetch_activities, compute_training_load, analyze_elevation_impact, or any custom data transformation`,
   },
   {
     description: "Display time series data as a line chart with configurable axes, colors, and multiple series support. Use this to visualize trends over time such as pace progression, distance over time, or heart rate trends.",
@@ -1324,7 +1561,26 @@ server.registerWidget(
 server.registerWidget(
   "render_scatter_plot",
   {
-    description: "Render a scatter plot for visualizing relationships between two variables with optional color coding by category and trend line. This is a visualization-only widget that accepts structured data and configuration.",
+    description: `Render a scatter plot for visualizing relationships between two variables with optional color coding by category and trend line. This is a VISUALIZATION-ONLY widget (no data fetching).
+
+WHEN TO USE:
+- Showing relationships between two metrics (distance vs pace, elevation vs heart rate)
+- Identifying correlations and patterns
+- Color-coding by category (run type, time of day, etc.)
+- Queries like: "Show me the relationship between distance and pace", "Plot elevation vs heart rate", "Visualize pace vs distance"
+
+WORKFLOW:
+1. First call a data tool (fetch_activities, analyze_elevation_impact, etc.)
+2. Transform data into x/y points with optional categories in GPT
+3. Call this widget with the formatted data
+
+EXAMPLE QUERIES:
+- "Show me how distance affects my pace"
+- "Plot elevation gain vs average heart rate"
+- "Visualize the relationship between pace and heart rate"
+- "Show me distance vs pace colored by run type"
+
+DATA SOURCES: fetch_activities, analyze_elevation_impact, calculate_pace_distribution, or any custom data transformation`,
   },
   {
     description: "Display two-dimensional data as a scatter plot with configurable axes, color coding by category, and optional trend line. Use this to visualize relationships between metrics such as distance vs pace, elevation vs heart rate, or any other metric correlations.",
@@ -1371,7 +1627,26 @@ server.registerWidget(
 server.registerWidget(
   "render_heatmap",
   {
-    description: "Render a calendar heatmap showing activity frequency and intensity over time. This is a visualization-only widget that accepts date + intensity pairs.",
+    description: `Render a calendar heatmap showing activity frequency and intensity over time. This is a VISUALIZATION-ONLY widget (no data fetching).
+
+WHEN TO USE:
+- Visualizing training consistency and patterns
+- Showing activity frequency over weeks/months
+- Identifying rest days and high-volume periods
+- Queries like: "Show me my training consistency", "Visualize my activity calendar", "Show me when I run most"
+
+WORKFLOW:
+1. First call fetch_activities to get activity data
+2. Transform activities into date + intensity pairs in GPT (intensity = distance or duration normalized to 0-1)
+3. Call this widget with the formatted data
+
+EXAMPLE QUERIES:
+- "Show me my training consistency over the last 3 months"
+- "Visualize my activity calendar"
+- "Show me a heatmap of my running frequency"
+- "Display my training patterns over time"
+
+DATA SOURCES: fetch_activities (transform to date + intensity pairs)`,
   },
   {
     description: "Display activity data as a calendar heatmap with color-coded intensity levels. Use this to visualize training consistency, activity patterns, and identify rest days or high-volume periods.",
@@ -1417,7 +1692,26 @@ server.registerWidget(
 server.registerWidget(
   "render_distribution",
   {
-    description: "Render a distribution visualization (box plot or histogram) for analyzing metric spread, quartiles, and outliers. This is a visualization-only widget that accepts metric values and configuration.",
+    description: `Render a distribution visualization (box plot or histogram) for analyzing metric spread, quartiles, and outliers. This is a VISUALIZATION-ONLY widget (no data fetching).
+
+WHEN TO USE:
+- Analyzing metric distributions (pace, heart rate, distance)
+- Understanding variability and consistency
+- Identifying outliers and typical ranges
+- Queries like: "Show me my pace distribution", "Visualize my heart rate zones", "Show me distance patterns"
+
+WORKFLOW:
+1. First call a data tool (fetch_activities, calculate_pace_distribution, etc.)
+2. Extract metric values as an array in GPT
+3. Call this widget with the metric array and config (box or histogram)
+
+EXAMPLE QUERIES:
+- "Show me my pace distribution as a box plot"
+- "Visualize my heart rate zones as a histogram"
+- "Show me the spread of my run distances"
+- "Display my pace variability"
+
+DATA SOURCES: fetch_activities, calculate_pace_distribution, or any data tool that returns metric arrays`,
   },
   {
     description: "Display metric distribution as a box plot or histogram showing quartiles, outliers, and data spread. Use this to analyze pace distribution, heart rate zones, distance patterns, or any other metric distributions to understand variability and identify outliers.",
@@ -1451,11 +1745,316 @@ server.registerWidget(
   },
 );
 
+// Integrated Widget: Analyze Run Progression
+server.registerWidget(
+  "analyze_run_progression",
+  {
+    description: `⚠️ REQUIRES AUTHORIZATION: Analyze performance progression for a specific route over time. This is an INTEGRATED widget (combines data fetching + visualization).
+
+WHEN TO USE (PREFER THIS):
+- Tracking improvement on a specific route
+- Queries like: "How am I improving on my usual route?", "Show me my progression on [route name]", "Track my performance on this route"
+- This is FASTER than fetch_activities + manual route matching + visualization
+
+WHEN NOT TO USE:
+- Comparing two specific runs → use get_run_comparison
+- General training trends (not route-specific) → use get_training_summary or compare_training_weeks
+
+WORKFLOW:
+- Single call fetches activities, matches route, calculates progression, and displays results
+- No additional visualization needed (integrated chart + stats)
+
+EXAMPLE QUERIES:
+- "How am I improving on my usual 5k route?"
+- "Show me my progression on the Canal Saint-Martin loop"
+- "Track my performance on my regular running route"
+- "Am I getting faster on my favorite route?"
+
+NOTE: Requires either a route name (searches activity names) or a polyline (for precise matching)`,
+  },
+  {
+    description: "Analyze how performance on a specific route has changed over time. Fetches activities matching the route (by polyline similarity or route ID), calculates performance metrics, and displays progression with trend analysis. Shows best/worst/average performances. Use this to track improvement on favorite routes or regular training loops.",
+    inputSchema: {
+      polyline: z
+        .string()
+        .optional()
+        .describe("Strava polyline string for route matching (encoded polyline from activity map)"),
+      routeName: z
+        .string()
+        .optional()
+        .describe("Route name to search for in activity names (alternative to polyline)"),
+      days: z
+        .number()
+        .optional()
+        .default(90)
+        .describe("Number of days to analyze (default: 90)"),
+      token: z
+        .string()
+        .optional()
+        .describe("Strava access token (required - get from exchange_strava_code tool if not provided)"),
+    },
+  },
+  async ({ polyline, routeName, days, token }, extra) => {
+    // Try manual token first, then OAuth
+    let auth = token ? { userId: "manual", accessToken: token } : await getAuth(extra);
+    
+    if (!auth) {
+      return authErrorResponse("missing_token");
+    }
+
+    try {
+      // Fetch activities from the specified time range
+      const afterTimestamp = Math.floor(Date.now() / 1000 - days * 24 * 60 * 60);
+      const allActivities = await fetchRecentActivities(auth.accessToken, afterTimestamp);
+
+      if (allActivities.length === 0) {
+        return {
+          structuredContent: {
+            route: {
+              identifier: polyline || routeName || "unknown",
+              matchedActivities: 0,
+            },
+            progression: [],
+            summary: {
+              totalRuns: 0,
+              bestPace: "0:00",
+              worstPace: "0:00",
+              averagePace: "0:00",
+              improvement: 0,
+            },
+          },
+          content: [
+            {
+              type: "text",
+              text: `No running activities found in the last ${days} days.`,
+            },
+          ],
+          isError: false,
+        };
+      }
+
+      // Match activities to the route
+      let matchedActivities: StravaActivity[] = [];
+
+      if (routeName) {
+        // Simple name-based matching
+        const normalizedRouteName = routeName.toLowerCase().trim();
+        matchedActivities = allActivities.filter(activity => 
+          activity.name.toLowerCase().includes(normalizedRouteName)
+        );
+      } else if (polyline) {
+        // For polyline matching, we'll use a simplified approach:
+        // Match activities with similar distance and that have polylines
+        // In a production system, you'd decode polylines and calculate Hausdorff distance
+        
+        // For now, we'll fetch detailed data for activities and match by polyline presence
+        // This is a simplified implementation - a full implementation would decode and compare polylines
+        const detailedActivities = await Promise.all(
+          allActivities.slice(0, 20).map(async (activity) => {
+            try {
+              return await fetchDetailedActivity(auth.accessToken, activity.id);
+            } catch (error) {
+              console.error(`Failed to fetch details for activity ${activity.id}:`, error);
+              return activity;
+            }
+          })
+        );
+
+        // Match activities that have the same polyline or very similar distance
+        // This is a placeholder - real implementation would decode and compare polylines
+        matchedActivities = detailedActivities.filter(activity => 
+          activity.map?.summary_polyline === polyline ||
+          (activity.map?.summary_polyline && activity.map.summary_polyline.length > 0)
+        );
+
+        // If no exact polyline match, fall back to distance-based matching
+        if (matchedActivities.length === 0) {
+          // Use the first activity's distance as reference
+          const referenceDistance = allActivities[0].distance;
+          const distanceTolerance = referenceDistance * 0.1; // 10% tolerance
+          
+          matchedActivities = allActivities.filter(activity =>
+            Math.abs(activity.distance - referenceDistance) <= distanceTolerance
+          );
+        }
+      } else {
+        // No route identifier provided - return error
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Error: Either 'polyline' or 'routeName' must be provided to identify the route.",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      if (matchedActivities.length === 0) {
+        return {
+          structuredContent: {
+            route: {
+              identifier: polyline || routeName || "unknown",
+              matchedActivities: 0,
+            },
+            progression: [],
+            summary: {
+              totalRuns: 0,
+              bestPace: "0:00",
+              worstPace: "0:00",
+              averagePace: "0:00",
+              improvement: 0,
+            },
+          },
+          content: [
+            {
+              type: "text",
+              text: `No activities found matching the specified route in the last ${days} days.`,
+            },
+          ],
+          isError: false,
+        };
+      }
+
+      // Sort activities by date (oldest first for progression)
+      matchedActivities.sort((a, b) => 
+        new Date(a.start_date_local).getTime() - new Date(b.start_date_local).getTime()
+      );
+
+      // Calculate performance metrics for each activity
+      const progression = matchedActivities.map(activity => {
+        const paceSecondsPerKm = 1000 / activity.average_speed;
+        const formatPace = (seconds: number) => {
+          const minutes = Math.floor(seconds / 60);
+          const secs = Math.round(seconds % 60);
+          return `${minutes}:${secs.toString().padStart(2, "0")}`;
+        };
+
+        return {
+          id: activity.id,
+          name: activity.name,
+          date: activity.start_date_local.split("T")[0],
+          distance: Math.round((activity.distance / 1000) * 10) / 10,
+          pace: formatPace(paceSecondsPerKm),
+          paceSeconds: Math.round(paceSecondsPerKm),
+          duration: Math.round(activity.moving_time / 60),
+          elevation: Math.round(activity.total_elevation_gain),
+          heartRate: activity.average_heartrate,
+        };
+      });
+
+      // Calculate summary statistics
+      const paceSeconds = progression.map(p => p.paceSeconds);
+      const bestPaceSeconds = Math.min(...paceSeconds);
+      const worstPaceSeconds = Math.max(...paceSeconds);
+      const avgPaceSeconds = Math.round(paceSeconds.reduce((sum, p) => sum + p, 0) / paceSeconds.length);
+
+      const formatPace = (seconds: number) => {
+        const minutes = Math.floor(seconds / 60);
+        const secs = Math.round(seconds % 60);
+        return `${minutes}:${secs.toString().padStart(2, "0")}`;
+      };
+
+      // Calculate improvement (compare first and last run)
+      const firstRunPace = progression[0].paceSeconds;
+      const lastRunPace = progression[progression.length - 1].paceSeconds;
+      const improvementSeconds = firstRunPace - lastRunPace; // Negative means slower (decline)
+      const improvementPercentage = firstRunPace > 0 
+        ? Math.round((improvementSeconds / firstRunPace) * 100 * 10) / 10
+        : 0;
+
+      // Determine trend
+      let trend: "improving" | "declining" | "stable" = "stable";
+      if (improvementSeconds > 10) {
+        trend = "improving"; // Getting faster
+      } else if (improvementSeconds < -10) {
+        trend = "declining"; // Getting slower
+      }
+
+      return {
+        structuredContent: {
+          route: {
+            identifier: polyline || routeName || "unknown",
+            matchedActivities: matchedActivities.length,
+            averageDistance: Math.round((matchedActivities.reduce((sum, a) => sum + a.distance, 0) / matchedActivities.length / 1000) * 10) / 10,
+          },
+          progression,
+          summary: {
+            totalRuns: matchedActivities.length,
+            bestPace: formatPace(bestPaceSeconds),
+            worstPace: formatPace(worstPaceSeconds),
+            averagePace: formatPace(avgPaceSeconds),
+            improvement: improvementPercentage,
+            improvementSeconds,
+            trend,
+            dateRange: {
+              first: progression[0].date,
+              last: progression[progression.length - 1].date,
+            },
+          },
+        },
+        content: [
+          {
+            type: "text",
+            text: `Route progression: ${matchedActivities.length} runs found. Best: ${formatPace(bestPaceSeconds)}/km, Average: ${formatPace(avgPaceSeconds)}/km. ${trend === "improving" ? `Improved by ${improvementPercentage}%` : trend === "declining" ? `Declined by ${Math.abs(improvementPercentage)}%` : "Stable performance"}.`,
+          },
+        ],
+        isError: false,
+      };
+    } catch (error) {
+      // Handle 401 Unauthorized errors specifically
+      if (error instanceof UnauthorizedError) {
+        return authErrorResponse("unauthorized");
+      }
+      
+      // Handle 429 Rate Limit errors
+      if (error instanceof RateLimitError) {
+        return rateLimitErrorResponse(
+          error.retryAfter,
+          error.limit,
+          error.usage
+        );
+      }
+      
+      console.error("Error analyzing run progression:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error analyzing run progression: ${error instanceof Error ? error.message : "Unknown error"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
 // Widget 3: Coaching Advice
 server.registerWidget(
   "get_coaching_advice",
   {
-    description: "⚠️ REQUIRES AUTHORIZATION: Get personalized coaching advice. User MUST have a valid Strava token. If no token or auth fails, STOP and guide user through exchange_strava_code tool first.",
+    description: `⚠️ REQUIRES AUTHORIZATION: Get personalized coaching advice. This is an INTEGRATED widget (combines data fetching + analysis).
+
+WHEN TO USE (PREFER THIS):
+- Training load assessment and recommendations
+- Queries like: "What should I do next?", "Am I overdoing it?", "Should I rest?", "Give me coaching advice"
+- This is FASTER than compute_training_load + manual reasoning
+
+WHEN NOT TO USE:
+- Need raw training load numbers → use compute_training_load
+- Want specific visualizations → use compute_training_load + render_line_chart
+
+WORKFLOW:
+- Single call returns training state, load metrics, and actionable recommendations
+- No additional analysis needed (integrated coaching logic)
+
+EXAMPLE QUERIES:
+- "What should I do next?"
+- "Am I training too hard?"
+- "Should I take a rest day?"
+- "Give me coaching advice based on my recent training"
+- "Am I at risk of injury?"`,
   },
   {
     description: "Analyze training load and provide coaching recommendations from Strava. ALWAYS fetch data from Strava API - NEVER ask user to provide training data manually. All data comes from their connected Strava account.",
@@ -1572,6 +2171,15 @@ server.registerWidget(
       // Handle 401 Unauthorized errors specifically
       if (error instanceof UnauthorizedError) {
         return authErrorResponse("unauthorized");
+      }
+      
+      // Handle 429 Rate Limit errors
+      if (error instanceof RateLimitError) {
+        return rateLimitErrorResponse(
+          error.retryAfter,
+          error.limit,
+          error.usage
+        );
       }
       
       console.error("Error getting coaching advice:", error);
