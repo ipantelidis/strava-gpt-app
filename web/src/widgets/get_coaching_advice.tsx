@@ -1,4 +1,4 @@
-import { useWidget } from "skybridge/client";
+import { useWidget } from "skybridge/web";
 import type { AppType } from "../../../server/src/server";
 
 export default function CoachingAdvice() {
