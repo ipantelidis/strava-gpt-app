@@ -150,6 +150,15 @@ The app uses a **three-layer architecture** for flexible GPT orchestration:
 - **Common queries** (80% case) → Use **Integrated Widgets** (fastest, best UX)
 - **Custom analysis** (20% long tail) → Compose **Data Tools + Visualization Widgets**
 
+**Design System**:
+All widgets use a shared design system for visual consistency:
+- Glassmorphism effects with standardized backdrop blur, opacity, and borders
+- Predefined gradient palette for backgrounds and charts
+- Semantic color coding (green=improvement, red=decline, gray=stable)
+- Consistent spacing, border radius, and shadow values
+- Runner-appropriate units (km, min/km pace, meters elevation)
+
+See [Design System Documentation](docs/DESIGN_SYSTEM.md) for complete usage guide and best practices.
 See [GPT Orchestration Guide](docs/GPT_ORCHESTRATION_GUIDE.md) for detailed orchestration patterns.
 
 ### Data Tools (No UI)
@@ -388,6 +397,27 @@ See [GPT Orchestration Guide](docs/GPT_ORCHESTRATION_GUIDE.md) for complete patt
 
 ## Implementation Notes
 
+### Testing Strategy
+
+The app uses a comprehensive testing approach with three types of tests:
+
+1. **Unit Tests** - Test individual functions and utilities in isolation
+2. **Integration Tests** - Test complete user flows from auth to visualization
+3. **Widget Tests** - Test UI components and design system usage
+
+**Test Files:**
+- `server/src/errors.test.ts` - Error handling tests (13 tests)
+- `server/src/server.test.ts` - Server and widget registration tests (3 tests)
+- `server/src/integration.test.ts` - Complete user flow tests (18 tests)
+
+**Running Tests:**
+```bash
+npm test              # Run all tests
+npm test -- --watch   # Watch mode for development
+```
+
+See [Testing Guide](docs/TESTING_GUIDE.md) for detailed testing patterns and best practices.
+
 ### Key Calculations (LLM-driven)
 
 - Weekly volume (total km)
@@ -416,3 +446,110 @@ See [GPT Orchestration Guide](docs/GPT_ORCHESTRATION_GUIDE.md) for complete patt
 - Responses are encouraging, actionable, and concise
 - No technical errors or rate limit issues during demo
 - Conversation feels natural and helpful, not robotic or data-dumpy
+
+---
+
+## Implementation Status
+
+### Completed Features
+
+#### ✅ Layered Architecture (Tasks 1-21)
+
+The app implements a complete three-layer architecture:
+
+**Layer 1: Data Tools (5 tools)**
+- `fetch_activities` - Fetch raw Strava activities with configurable detail
+- `get_run_comparison` - Compare two specific runs side-by-side
+- `calculate_pace_distribution` - Analyze pace patterns by run type or distance
+- `analyze_elevation_impact` - Calculate pace adjustments for elevation
+- `compute_training_load` - Calculate acute/chronic load and injury risk
+
+**Layer 2: Visualization Widgets (5 widgets)**
+- `render_line_chart` - Time series visualization with multiple series
+- `render_scatter_plot` - Two-dimensional relationships with color coding
+- `render_comparison_card` - Side-by-side comparison with deltas
+- `render_heatmap` - Calendar heatmap for activity patterns
+- `render_distribution` - Box plots and histograms for metric analysis
+
+**Layer 3: Integrated Widgets (4 widgets)**
+- `get_training_summary` - Weekly stats with runs list and insights
+- `compare_training_weeks` - Week-over-week comparison with trends
+- `get_coaching_advice` - Training load analysis with recommendations
+- `analyze_run_progression` - Route-specific performance tracking
+
+#### ✅ Design System
+
+Shared design system ensures visual consistency:
+- Glassmorphism effects with standardized values
+- Predefined gradient palette (4 gradients)
+- Semantic color coding (improvement/decline/stable)
+- Consistent spacing, borders, and shadows
+- Runner-appropriate unit formatting
+
+See [Design System Documentation](docs/DESIGN_SYSTEM.md)
+
+#### ✅ Error Handling
+
+Comprehensive error handling across all layers:
+- 401 Unauthorized detection with re-auth guidance
+- 429 Rate limit detection with retry suggestions
+- Missing optional data handling (HR, GPS, splits)
+- Graceful degradation when visualizations fail
+- Clear error messages with actionable next steps
+
+See [Error Handling Documentation](docs/ERROR_HANDLING.md)
+
+#### ✅ Caching
+
+Conversation-context caching for performance:
+- Cache key generation (user + date range + detail level)
+- Cache hit detection and reuse
+- Metadata tracking (cached vs fresh data)
+- Reduces API calls and improves response time
+
+#### ✅ Testing
+
+Comprehensive test suite with 34 tests:
+- 13 error handling tests
+- 3 server/widget registration tests
+- 18 integration tests covering complete user flows
+
+Test coverage includes:
+- Auth → Data Tool → Visualization flows
+- GPT orchestration patterns
+- Fallback paths and error handling
+- Caching behavior
+- Design system consistency
+- Data validation and completeness
+
+See [Testing Guide](docs/TESTING_GUIDE.md)
+
+#### ✅ Documentation
+
+Complete documentation for developers:
+- [SPEC.md](SPEC.md) - Product specification and architecture
+- [GPT Orchestration Guide](docs/GPT_ORCHESTRATION_GUIDE.md) - Tool selection patterns
+- [Design System Documentation](docs/DESIGN_SYSTEM.md) - Visual consistency guide
+- [Error Handling Documentation](docs/ERROR_HANDLING.md) - Error patterns and responses
+- [Testing Guide](docs/TESTING_GUIDE.md) - Testing patterns and best practices
+
+### Architecture Benefits
+
+**Flexibility**: GPT can compose any data tool with any visualization for custom analysis
+
+**Performance**: Integrated widgets provide fast paths for common queries (80% case)
+
+**Consistency**: Shared design system ensures cohesive visual experience
+
+**Reliability**: Comprehensive error handling and fallback paths
+
+**Maintainability**: Clear separation of concerns, well-tested, fully documented
+
+### Future Enhancements
+
+See "Future Extensions (Post-MVP)" section above for planned features including:
+- Route generator with maps
+- Weather-aware recommendations
+- Training plan suggestions
+- Race preparation advice
+- Comparative insights
