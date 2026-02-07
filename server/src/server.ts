@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getAuth, authErrorResponse } from "./auth.js";
 import {
   fetchRecentActivities,
+  fetchActivitiesWithDetails,
   activityToSummary,
   calculateAveragePace,
   filterActivitiesByDateRange,
@@ -114,6 +115,89 @@ server.registerTool(
           {
             type: "text",
             text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
+// Data Tool: Fetch Activities
+server.registerTool(
+  "fetch_activities",
+  {
+    description: "⚠️ REQUIRES AUTHORIZATION: Fetch raw Strava running activities with configurable detail level. This is a data-only tool that returns structured JSON for GPT reasoning or visualization. Use this when you need flexible access to activity data for custom analysis. For common queries, prefer integrated widgets like get_training_summary.",
+    inputSchema: {
+      days: z
+        .number()
+        .optional()
+        .default(7)
+        .describe("Number of days to fetch activities from (default: 7)"),
+      includeDetails: z
+        .boolean()
+        .optional()
+        .default(false)
+        .describe("Whether to fetch detailed data including splits, heart rate, and GPS (default: false)"),
+      token: z
+        .string()
+        .optional()
+        .describe("Strava access token (required - get from exchange_strava_code tool if not provided)"),
+    },
+  },
+  async ({ days, includeDetails, token }, extra) => {
+    // Try manual token first, then OAuth
+    let auth = token ? { userId: "manual", accessToken: token } : await getAuth(extra);
+    
+    if (!auth) {
+      return authErrorResponse("missing_token");
+    }
+
+    try {
+      // Fetch activities with optional details
+      const activities = await fetchActivitiesWithDetails(
+        auth.accessToken,
+        days,
+        includeDetails
+      );
+
+      // Return structured data output
+      return {
+        structuredContent: {
+          data: activities,
+          metadata: {
+            fetchedAt: new Date().toISOString(),
+            source: "strava",
+            cached: false,
+            count: activities.length,
+            dateRange: {
+              days,
+              from: new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              to: new Date().toISOString().split('T')[0],
+            },
+            includeDetails,
+          },
+        },
+        content: [
+          {
+            type: "text",
+            text: `Fetched ${activities.length} running activities from the last ${days} days${includeDetails ? ' with detailed data (splits, HR, GPS)' : ''}.`,
+          },
+        ],
+        isError: false,
+      };
+    } catch (error) {
+      // Handle 401 Unauthorized errors specifically
+      if (error instanceof UnauthorizedError) {
+        return authErrorResponse("unauthorized");
+      }
+      
+      console.error("Error fetching activities:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error fetching activities: ${error instanceof Error ? error.message : "Unknown error"}`,
           },
         ],
         isError: true,

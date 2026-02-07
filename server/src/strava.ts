@@ -13,6 +13,20 @@ export interface StravaActivity {
   start_date: string; // ISO 8601
   start_date_local: string;
   average_speed: number; // meters per second
+  average_heartrate?: number;
+  max_heartrate?: number;
+  splits_metric?: Split[];
+  map?: {
+    summary_polyline: string;
+  };
+}
+
+export interface Split {
+  distance: number; // meters
+  elapsed_time: number; // seconds
+  moving_time: number; // seconds
+  average_speed: number; // meters per second
+  average_heartrate?: number;
 }
 
 export interface ActivitySummary {
@@ -68,6 +82,65 @@ export async function fetchRecentActivities(
 
   // Filter for running activities only
   return activities.filter((a: StravaActivity) => a.type === "Run");
+}
+
+/**
+ * Fetch detailed activity data including splits, HR, and GPS
+ */
+export async function fetchDetailedActivity(
+  accessToken: string,
+  activityId: number,
+): Promise<StravaActivity> {
+  const res = await fetch(
+    `https://www.strava.com/api/v3/activities/${activityId}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
+
+  // Detect 401 Unauthorized errors
+  if (res.status === 401) {
+    throw new UnauthorizedError("Strava API returned 401 Unauthorized - token is invalid or expired");
+  }
+
+  if (!res.ok) {
+    throw new Error(`Strava API error: ${res.status} ${res.statusText}`);
+  }
+
+  return await res.json();
+}
+
+/**
+ * Fetch activities with optional detailed data
+ */
+export async function fetchActivitiesWithDetails(
+  accessToken: string,
+  days: number,
+  includeDetails: boolean = false,
+): Promise<StravaActivity[]> {
+  // Calculate timestamp for date range
+  const afterTimestamp = Math.floor(Date.now() / 1000 - days * 24 * 60 * 60);
+
+  // Fetch basic activities
+  const activities = await fetchRecentActivities(accessToken, afterTimestamp);
+
+  // If details requested, fetch full data for each activity
+  if (includeDetails) {
+    const detailedActivities = await Promise.all(
+      activities.map(async (activity) => {
+        try {
+          return await fetchDetailedActivity(accessToken, activity.id);
+        } catch (error) {
+          // If detailed fetch fails, return basic activity
+          console.error(`Failed to fetch details for activity ${activity.id}:`, error);
+          return activity;
+        }
+      })
+    );
+    return detailedActivities;
+  }
+
+  return activities;
 }
 
 /**
