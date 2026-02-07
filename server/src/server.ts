@@ -16,6 +16,74 @@ const server = new McpServer(
   { capabilities: {} },
 );
 
+// Helper tool: Exchange Strava authorization code for access token
+server.registerTool(
+  "exchange_strava_code",
+  {
+    description: "Exchange Strava authorization code for access token. First, authorize at: https://www.strava.com/oauth/authorize?client_id=200939&response_type=code&redirect_uri=http://localhost&approval_prompt=force&scope=read,activity:read_all",
+  },
+  {
+    description: "Exchange authorization code for access token",
+    inputSchema: {
+      code: z.string().describe("The authorization code from Strava redirect URL"),
+    },
+  },
+  async ({ code }) => {
+    try {
+      const response = await fetch("https://www.strava.com/oauth/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: process.env.STRAVA_CLIENT_ID || "",
+          client_secret: process.env.STRAVA_CLIENT_SECRET || "",
+          code: code,
+          grant_type: "authorization_code",
+        }),
+      });
+
+      if (!response.ok) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to exchange code: ${response.status} ${response.statusText}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const data = await response.json();
+
+      return {
+        structuredContent: {
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+          expires_at: data.expires_at,
+          athlete: data.athlete,
+        },
+        content: [
+          {
+            type: "text",
+            text: `✅ Successfully authorized! Your access token: ${data.access_token}\n\nNow you can use this token with the training widgets by saying: "Analyze my training using token: ${data.access_token}"`,
+          },
+        ],
+        isError: false,
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
 // Widget 1: Training Summary
 server.registerWidget(
   "get_training_summary",
