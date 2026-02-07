@@ -47,14 +47,65 @@ server.registerWidget(
   },
 );
 
+// Tool: Connect Strava Account
+// Returns a component button for OAuth authorization
+server.registerTool(
+  "connect_strava",
+  {
+    description: "Connect your Strava account to access your training data. This tool provides an authorization button that opens Strava's OAuth page. Use this when you need to authorize or re-authorize access to your Strava activities.",
+    inputSchema: {},
+  },
+  async () => {
+    const serverUrl = process.env.MCP_SERVER_URL || "http://localhost:3000";
+    const clientId = process.env.STRAVA_CLIENT_ID;
+    
+    if (!clientId) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "🔐 Server configuration error: Strava client ID not configured. Please contact support.",
+          },
+        ],
+        isError: true,
+      };
+    }
+    
+    // Create authorization URL with callback to our server
+    const authUrl = `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(serverUrl + "/oauth/callback")}&approval_prompt=force&scope=read,activity:read_all`;
+    
+    return {
+      content: [
+        {
+          type: "text",
+          text: "🔐 Connect Your Strava Account\n\nTo analyze your training data, I need access to your Strava activities.\n\nClick the button below to authorize access:",
+        },
+        {
+          type: "component",
+          component: {
+            type: "button",
+            text: "Connect Strava",
+            url: authUrl,
+          },
+        } as any,
+        {
+          type: "text",
+          text: "\nAfter authorizing on Strava, you'll receive an access token. Copy it and provide it when using the training tools.",
+        },
+      ],
+      isError: false,
+    };
+  },
+);
+
 // DEPRECATED: OAuth flow now handles authentication automatically
 // This tool is kept for backward compatibility but should not be used
 server.registerTool(
   "exchange_strava_code",
   {
-    description: "⚠️ DEPRECATED: This tool is no longer needed. Authentication is now handled automatically through OAuth. When you need Strava access, ChatGPT will prompt you to connect your account with a simple 'Connect Strava' button. No manual code exchange required!",
+    description: "⚠️ DEPRECATED: This tool is no longer needed. Use 'connect_strava' instead to get an authorization button.",
     inputSchema: {
-      code: z.string().describe("Authorization code (deprecated - OAuth handles this automatically)"),
+      code: z.string().describe("Authorization code (deprecated)"),
     },
   },
   async (_input) => {
@@ -62,7 +113,7 @@ server.registerTool(
       content: [
         {
           type: "text",
-          text: "⚠️ This tool is deprecated. Please use the automatic OAuth flow instead.\n\nWhen you try to access your training data, ChatGPT will automatically prompt you to connect your Strava account. Just click 'Connect Strava' and authorize - no manual code copying needed!",
+          text: "⚠️ This tool is deprecated. Please use the 'connect_strava' tool instead to get an authorization button.",
         },
       ],
       isError: true,

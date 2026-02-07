@@ -83,17 +83,16 @@ export function createAuthError(type: AuthError["type"]): AuthError {
       type: "missing_token",
       message: "Please connect your Strava account to access your training data.",
       instructions: [
-        "Click 'Connect Strava' to authorize access to your activities.",
-        "You'll be redirected to Strava to grant permission.",
-        "After authorization, you'll be automatically connected."
+        "Use the 'connect_strava' tool to get an authorization button.",
+        "Click the button to authorize access to your activities.",
+        "After authorization, copy the token and provide it when using tools."
       ]
     },
     invalid_token: {
       type: "invalid_token",
       message: "Your Strava connection is invalid.",
       instructions: [
-        "Please reconnect your Strava account.",
-        "Click 'Connect Strava' to re-authorize."
+        "Please reconnect your Strava account using the 'connect_strava' tool."
       ]
     },
     expired_token: {
@@ -101,7 +100,7 @@ export function createAuthError(type: AuthError["type"]): AuthError {
       message: "Your Strava connection has expired.",
       instructions: [
         "Strava tokens expire after 6 hours for security.",
-        "Please reconnect your Strava account to continue."
+        "Please reconnect using the 'connect_strava' tool."
       ]
     },
     unauthorized: {
@@ -109,7 +108,7 @@ export function createAuthError(type: AuthError["type"]): AuthError {
       message: "Unable to access your Strava data.",
       instructions: [
         "Your authorization may have been revoked or expired.",
-        "Please reconnect your Strava account."
+        "Please reconnect using the 'connect_strava' tool."
       ]
     }
   };
@@ -119,27 +118,10 @@ export function createAuthError(type: AuthError["type"]): AuthError {
 
 /**
  * Returns auth error response for unauthenticated requests
- * Uses component button for OAuth authorization
+ * Directs users to the connect_strava tool
  */
 export function authErrorResponse(errorType: AuthError["type"] = "missing_token") {
   const serverUrl = process.env.MCP_SERVER_URL || "http://localhost:3000";
-  const clientId = process.env.STRAVA_CLIENT_ID;
-  
-  if (!clientId) {
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: "🔐 Server configuration error: Strava client ID not configured. Please contact support.",
-        },
-      ],
-      isError: true,
-    };
-  }
-  
-  // Create authorization URL with callback to our server
-  const authUrl = `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(serverUrl + "/oauth/callback")}&approval_prompt=force&scope=read,activity:read_all`;
-  
   const authError = createAuthError(errorType);
   
   return {
@@ -148,19 +130,6 @@ export function authErrorResponse(errorType: AuthError["type"] = "missing_token"
         type: "text" as const,
         text: `🔐 ${authError.message}\n\n${authError.instructions.join("\n")}`,
       },
-      // Component button for OAuth (ChatGPT Apps SDK feature)
-      {
-        type: "component",
-        component: {
-          type: "button",
-          text: "Connect Strava",
-          url: authUrl,
-        },
-      } as any,
-      {
-        type: "text" as const,
-        text: "After authorizing on Strava, you'll receive an access token. Copy it and provide it when using the tools.",
-      },
     ],
     isError: true,
     _meta: {
@@ -168,7 +137,6 @@ export function authErrorResponse(errorType: AuthError["type"] = "missing_token"
         `Bearer resource_metadata="${serverUrl}/.well-known/oauth-protected-resource"`,
       ],
       authError: authError,
-      authorizationUrl: authUrl,
     },
   };
 }
