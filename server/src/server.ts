@@ -128,7 +128,7 @@ server.registerWidget(
     description: "⚠️ REQUIRES AUTHORIZATION: Analyze recent running activities. User MUST have a valid Strava token. If no token or auth fails, STOP and guide user through exchange_strava_code tool first.",
   },
   {
-    description: "Analyze recent running activities and provide coaching insights",
+    description: "Analyze recent running activities from Strava. ALWAYS fetch data from Strava API - NEVER ask user to provide training data manually. All data comes from their connected Strava account.",
     inputSchema: {
       days: z
         .number()
@@ -138,7 +138,7 @@ server.registerWidget(
       token: z
         .string()
         .optional()
-        .describe("Strava access token (optional, for testing)"),
+        .describe("Strava access token (required - get from exchange_strava_code tool if not provided)"),
     },
   },
   async ({ days, token }, extra) => {
@@ -232,7 +232,7 @@ server.registerWidget(
     description: "⚠️ REQUIRES AUTHORIZATION: Compare training weeks. User MUST have a valid Strava token. If no token or auth fails, STOP and guide user through exchange_strava_code tool first.",
   },
   {
-    description: "Show week-over-week training progress with trends",
+    description: "Show week-over-week training progress from Strava. ALWAYS fetch data from Strava API - NEVER ask user to provide training data manually. All data comes from their connected Strava account.",
     inputSchema: {
       currentWeekStart: z
         .string()
@@ -241,7 +241,7 @@ server.registerWidget(
       token: z
         .string()
         .optional()
-        .describe("Strava access token (optional, for testing)"),
+        .describe("Strava access token (required - get from exchange_strava_code tool if not provided)"),
     },
   },
   async ({ currentWeekStart, token }, extra) => {
@@ -379,7 +379,7 @@ server.registerWidget(
     description: "⚠️ REQUIRES AUTHORIZATION: Get personalized coaching advice. User MUST have a valid Strava token. If no token or auth fails, STOP and guide user through exchange_strava_code tool first.",
   },
   {
-    description: "Analyze training load and provide actionable next-step recommendations",
+    description: "Analyze training load and provide coaching recommendations from Strava. ALWAYS fetch data from Strava API - NEVER ask user to provide training data manually. All data comes from their connected Strava account.",
     inputSchema: {
       context: z
         .string()
@@ -388,7 +388,7 @@ server.registerWidget(
       token: z
         .string()
         .optional()
-        .describe("Strava access token (optional, for testing)"),
+        .describe("Strava access token (required - get from exchange_strava_code tool if not provided)"),
     },
   },
   async ({ context: _context, token }, extra) => {
