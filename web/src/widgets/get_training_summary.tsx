@@ -1,5 +1,6 @@
 import { generateHelpers } from "skybridge/web";
 import type { AppType } from "../../../server/src/server";
+import { DesignSystem, applyGradientText, createGradientOverlay } from "../design-system";
 
 const { useToolInfo } = generateHelpers<AppType>();
 
@@ -8,18 +9,18 @@ export default function TrainingSummary() {
 
   if (toolInfo.isPending) {
     return (
-      <div style={{ padding: "32px", textAlign: "center" }}>
-        <div style={{ fontSize: "40px", marginBottom: "12px", animation: "pulse 2s ease-in-out infinite" }}>🏃‍♂️</div>
-        <p style={{ color: "#666", margin: 0, fontSize: "14px" }}>Loading your training data...</p>
+      <div style={{ padding: DesignSystem.spacing.card, textAlign: "center" }}>
+        <div style={{ fontSize: "40px", marginBottom: DesignSystem.spacing.compact, animation: "pulse 2s ease-in-out infinite" }}>🏃‍♂️</div>
+        <p style={{ color: DesignSystem.colors.semantic.stable, margin: 0, fontSize: "14px" }}>Loading your training data...</p>
       </div>
     );
   }
 
   if (!toolInfo.isSuccess) {
     return (
-      <div style={{ padding: "32px", textAlign: "center" }}>
-        <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
-        <p style={{ margin: 0, color: "#ef4444", fontSize: "14px" }}>Error loading training data</p>
+      <div style={{ padding: DesignSystem.spacing.card, textAlign: "center" }}>
+        <div style={{ fontSize: "40px", marginBottom: DesignSystem.spacing.compact }}>⚠️</div>
+        <p style={{ margin: 0, color: DesignSystem.colors.semantic.decline, fontSize: "14px" }}>Error loading training data</p>
       </div>
     );
   }
@@ -32,9 +33,9 @@ export default function TrainingSummary() {
   // Safety check
   if (!stats || !period) {
     return (
-      <div style={{ padding: "32px", textAlign: "center" }}>
-        <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
-        <p style={{ margin: 0, color: "#ef4444", fontSize: "14px" }}>No training data available</p>
+      <div style={{ padding: DesignSystem.spacing.card, textAlign: "center" }}>
+        <div style={{ fontSize: "40px", marginBottom: DesignSystem.spacing.compact }}>⚠️</div>
+        <p style={{ margin: 0, color: DesignSystem.colors.semantic.decline, fontSize: "14px" }}>No training data available</p>
       </div>
     );
   }
@@ -47,33 +48,28 @@ export default function TrainingSummary() {
     }}>
       <div style={{ 
         background: "white",
-        borderRadius: "24px", 
-        padding: "32px",
+        borderRadius: DesignSystem.borderRadius.card, 
+        padding: DesignSystem.spacing.card,
         border: "1px solid #e5e7eb",
-        boxShadow: "0 20px 60px rgba(0, 0, 0, 0.08)",
+        boxShadow: DesignSystem.shadows.card,
         position: "relative" as const,
         overflow: "hidden" as const
       }}>
         {/* Subtle gradient overlay */}
         <div style={{
-          position: "absolute" as const,
-          top: 0,
-          left: 0,
-          right: 0,
+          ...createGradientOverlay(DesignSystem.colors.gradients.primary, 0.03),
           height: "200px",
-          background: "linear-gradient(180deg, rgba(102, 126, 234, 0.03) 0%, transparent 100%)",
-          pointerEvents: "none" as const
         }} />
 
         {/* Header */}
-        <div style={{ position: "relative" as const, marginBottom: "32px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+        <div style={{ position: "relative" as const, marginBottom: DesignSystem.spacing.card }}>
+          <div style={{ display: "flex", alignItems: "center", gap: DesignSystem.spacing.compact, marginBottom: DesignSystem.spacing.compact }}>
             <div style={{ 
               width: "8px", 
               height: "8px", 
               borderRadius: "50%", 
-              background: "#10b981",
-              boxShadow: "0 0 12px rgba(16, 185, 129, 0.6)"
+              background: DesignSystem.colors.semantic.improvement,
+              boxShadow: `0 0 12px ${DesignSystem.colors.semantic.improvement}99`
             }} />
             <span style={{ 
               fontSize: "11px", 
@@ -94,45 +90,33 @@ export default function TrainingSummary() {
         <div style={{
           display: "grid",
           gridTemplateColumns: "repeat(2, 1fr)",
-          gap: "16px",
-          marginBottom: "32px",
+          gap: DesignSystem.spacing.element,
+          marginBottom: DesignSystem.spacing.card,
           position: "relative" as const
         }}>
           {[
-            { value: stats.totalDistance, label: "km total", gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" },
-            { value: stats.totalRuns, label: "runs", gradient: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" },
-            { value: stats.avgPace, label: "avg pace /km", gradient: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)" },
-            { value: stats.totalTime, label: "minutes", gradient: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)" }
+            { value: stats.totalDistance, label: "km total", gradient: DesignSystem.colors.gradients.primary },
+            { value: stats.totalRuns, label: "runs", gradient: DesignSystem.colors.gradients.secondary },
+            { value: stats.avgPace, label: "avg pace /km", gradient: DesignSystem.colors.gradients.tertiary },
+            { value: stats.totalTime, label: "minutes", gradient: DesignSystem.colors.gradients.quaternary }
           ].map((stat, i) => (
             <div key={i} style={{ 
-              padding: "24px", 
+              padding: DesignSystem.spacing.section, 
               background: "#f8f9fa",
-              backdropFilter: "blur(10px)",
-              borderRadius: "16px",
-              border: "1px solid rgba(255, 255, 255, 0.2)",
+              backdropFilter: DesignSystem.glassmorphism.backdropBlur,
+              borderRadius: DesignSystem.borderRadius.element,
+              border: DesignSystem.glassmorphism.border,
               position: "relative" as const,
               overflow: "hidden" as const,
               transition: "all 0.3s ease"
             }}>
-              <div style={{
-                position: "absolute" as const,
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: stat.gradient,
-                opacity: 0.08,
-                pointerEvents: "none" as const
-              }} />
+              <div style={createGradientOverlay(stat.gradient)} />
               <div style={{ position: "relative" as const }}>
                 <div style={{ 
                   fontSize: "36px", 
                   fontWeight: "700", 
                   marginBottom: "4px",
-                  background: stat.gradient,
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text"
+                  ...applyGradientText(stat.gradient)
                 }}>
                   {stat.value}
                 </div>
@@ -150,27 +134,27 @@ export default function TrainingSummary() {
             <h3 style={{ 
               fontSize: "13px", 
               fontWeight: "600", 
-              marginBottom: "16px", 
+              marginBottom: DesignSystem.spacing.element, 
               color: "rgba(0, 0, 0, 0.6)",
               textTransform: "uppercase" as const,
               letterSpacing: "0.5px"
             }}>
               Recent Activity
             </h3>
-            <div style={{ display: "flex", flexDirection: "column" as const, gap: "8px" }}>
-              {runs.slice(0, 5).map((run, i) => (
+            <div style={{ display: "flex", flexDirection: "column" as const, gap: DesignSystem.spacing.compact }}>
+              {runs.slice(0, 5).map((run: any, i: number) => (
                 <div
                   key={i}
                   style={{
-                    padding: "16px 20px",
+                    padding: `${DesignSystem.spacing.element} 20px`,
                     background: "#f3f4f6",
-                    backdropFilter: "blur(10px)",
-                    borderRadius: "12px",
+                    backdropFilter: DesignSystem.glassmorphism.backdropBlur,
+                    borderRadius: DesignSystem.borderRadius.small,
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
                     fontSize: "13px",
-                    border: "1px solid rgba(255, 255, 255, 0.2)",
+                    border: DesignSystem.glassmorphism.border,
                     transition: "all 0.2s ease"
                   }}
                 >

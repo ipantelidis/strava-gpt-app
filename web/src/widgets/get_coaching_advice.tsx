@@ -1,5 +1,6 @@
 import { generateHelpers } from "skybridge/web";
 import type { AppType } from "../../../server/src/server";
+import { DesignSystem, applyGradientText, createGradientOverlay, applyGlassmorphism, getSemanticBackground } from "../design-system";
 
 const { useToolInfo } = generateHelpers<AppType>();
 
@@ -8,18 +9,18 @@ export default function CoachingAdvice() {
 
   if (toolInfo.isPending) {
     return (
-      <div style={{ padding: "32px", textAlign: "center" }}>
-        <div style={{ fontSize: "40px", marginBottom: "12px" }}>🤔</div>
-        <p style={{ color: "#666", margin: 0, fontSize: "14px" }}>Analyzing your training...</p>
+      <div style={{ padding: DesignSystem.spacing.card, textAlign: "center" }}>
+        <div style={{ fontSize: "40px", marginBottom: DesignSystem.spacing.compact }}>🤔</div>
+        <p style={{ color: DesignSystem.colors.semantic.stable, margin: 0, fontSize: "14px" }}>Analyzing your training...</p>
       </div>
     );
   }
 
   if (!toolInfo.isSuccess) {
     return (
-      <div style={{ padding: "32px", textAlign: "center" }}>
-        <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
-        <p style={{ margin: 0, color: "#ef4444", fontSize: "14px" }}>Error analyzing training</p>
+      <div style={{ padding: DesignSystem.spacing.card, textAlign: "center" }}>
+        <div style={{ fontSize: "40px", marginBottom: DesignSystem.spacing.compact }}>⚠️</div>
+        <p style={{ margin: 0, color: DesignSystem.colors.semantic.decline, fontSize: "14px" }}>Error analyzing training</p>
       </div>
     );
   }
@@ -29,7 +30,7 @@ export default function CoachingAdvice() {
   const getStateConfig = () => {
     switch (trainingState) {
       case "fresh":
-        return { emoji: "💪", color: "#10b981", bg: "rgba(16, 185, 129, 0.1)", label: "Fresh & Ready" };
+        return { emoji: "💪", color: DesignSystem.colors.semantic.improvement, bg: getSemanticBackground(1, false, 0.1), label: "Fresh & Ready" };
       case "building":
         return { emoji: "📈", color: "#3b82f6", bg: "rgba(59, 130, 246, 0.1)", label: "Building Fitness" };
       case "fatigued":
@@ -37,7 +38,7 @@ export default function CoachingAdvice() {
       case "recovering":
         return { emoji: "🧘", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.1)", label: "Recovering" };
       default:
-        return { emoji: "🏃", color: "#6b7280", bg: "rgba(107, 114, 128, 0.1)", label: "Training" };
+        return { emoji: "🏃", color: DesignSystem.colors.semantic.stable, bg: getSemanticBackground(0, false, 0.1), label: "Training" };
     }
   };
 
@@ -50,29 +51,22 @@ export default function CoachingAdvice() {
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif"
     }}>
       <div style={{ 
-        background: "rgba(255, 255, 255, 0.02)",
-        backdropFilter: "blur(20px)",
-        borderRadius: "24px", 
-        padding: "32px",
-        border: "1px solid rgba(255, 255, 255, 0.06)",
-        boxShadow: "0 20px 60px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+        ...applyGlassmorphism(0.02),
+        borderRadius: DesignSystem.borderRadius.card, 
+        padding: DesignSystem.spacing.card,
+        boxShadow: `${DesignSystem.shadows.card}, inset 0 1px 0 rgba(255, 255, 255, 0.1)`,
         position: "relative" as const,
         overflow: "hidden" as const
       }}>
         {/* Gradient overlay */}
         <div style={{
-          position: "absolute" as const,
-          top: 0,
-          left: 0,
-          right: 0,
+          ...createGradientOverlay(DesignSystem.colors.gradients.primary, 0.03),
           height: "200px",
-          background: "linear-gradient(180deg, rgba(102, 126, 234, 0.03) 0%, transparent 100%)",
-          pointerEvents: "none" as const
         }} />
 
         {/* Header */}
-        <div style={{ position: "relative" as const, marginBottom: "24px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <div style={{ position: "relative" as const, marginBottom: DesignSystem.spacing.section }}>
+          <div style={{ display: "flex", alignItems: "center", gap: DesignSystem.spacing.compact }}>
             <div style={{ 
               width: "8px", 
               height: "8px", 
@@ -96,9 +90,9 @@ export default function CoachingAdvice() {
         <div style={{
           padding: "28px",
           background: stateConfig.bg,
-          backdropFilter: "blur(10px)",
-          borderRadius: "16px",
-          marginBottom: "32px",
+          backdropFilter: DesignSystem.glassmorphism.backdropBlur,
+          borderRadius: DesignSystem.borderRadius.element,
+          marginBottom: DesignSystem.spacing.card,
           display: "flex",
           alignItems: "center",
           gap: "20px",
@@ -107,13 +101,7 @@ export default function CoachingAdvice() {
           overflow: "hidden" as const
         }}>
           <div style={{
-            position: "absolute" as const,
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: `linear-gradient(135deg, ${stateConfig.color}08 0%, transparent 100%)`,
-            pointerEvents: "none" as const
+            ...createGradientOverlay(`linear-gradient(135deg, ${stateConfig.color} 0%, transparent 100%)`, 0.08)
           }} />
           <span style={{ fontSize: "56px", position: "relative" as const }}>{stateConfig.emoji}</span>
           <div style={{ position: "relative" as const }}>
@@ -127,52 +115,42 @@ export default function CoachingAdvice() {
         </div>
 
         {/* Recent Load */}
-        <div style={{ marginBottom: "32px", position: "relative" as const }}>
+        <div style={{ marginBottom: DesignSystem.spacing.card, position: "relative" as const }}>
           <h3 style={{ 
             fontSize: "13px", 
             fontWeight: "600", 
-            marginBottom: "16px", 
+            marginBottom: DesignSystem.spacing.element, 
             color: "rgba(0, 0, 0, 0.6)",
             textTransform: "uppercase" as const,
             letterSpacing: "0.5px"
           }}>
             Recent Load
           </h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: DesignSystem.spacing.compact }}>
             {[
-              { value: recentLoad.last7Days, label: "Last 7 days", gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" },
-              { value: recentLoad.last3Days, label: "Last 3 days", gradient: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" },
-              { value: recentLoad.consecutiveDays, label: "Consecutive", gradient: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)" }
+              { value: recentLoad.last7Days, label: "Last 7 days", gradient: DesignSystem.colors.gradients.primary },
+              { value: recentLoad.last3Days, label: "Last 3 days", gradient: DesignSystem.colors.gradients.secondary },
+              { value: recentLoad.consecutiveDays, label: "Consecutive", gradient: DesignSystem.colors.gradients.tertiary }
             ].map((stat, i) => (
               <div key={i} style={{ 
                 padding: "20px", 
                 background: "rgba(255, 255, 255, 0.4)",
-                backdropFilter: "blur(10px)",
-                borderRadius: "12px",
-                border: "1px solid rgba(255, 255, 255, 0.2)",
+                backdropFilter: DesignSystem.glassmorphism.backdropBlur,
+                borderRadius: DesignSystem.borderRadius.small,
+                border: DesignSystem.glassmorphism.border,
                 textAlign: "center" as const,
                 position: "relative" as const,
                 overflow: "hidden" as const
               }}>
                 <div style={{
-                  position: "absolute" as const,
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background: stat.gradient,
-                  opacity: 0.08,
-                  pointerEvents: "none" as const
+                  ...createGradientOverlay(stat.gradient)
                 }} />
                 <div style={{ position: "relative" as const }}>
                   <div style={{ 
                     fontSize: "32px", 
                     fontWeight: "700", 
                     marginBottom: "4px",
-                    background: stat.gradient,
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    backgroundClip: "text"
+                    ...applyGradientText(stat.gradient)
                   }}>
                     {stat.value}
                   </div>
@@ -188,47 +166,41 @@ export default function CoachingAdvice() {
         {/* Recommendation */}
         {recommendation.action && (
           <div style={{
-            padding: "24px",
+            padding: DesignSystem.spacing.section,
             background: "rgba(245, 158, 11, 0.08)",
-            backdropFilter: "blur(10px)",
+            backdropFilter: DesignSystem.glassmorphism.backdropBlur,
             border: "1px solid rgba(245, 158, 11, 0.2)",
-            borderRadius: "16px",
+            borderRadius: DesignSystem.borderRadius.element,
             position: "relative" as const,
             overflow: "hidden" as const
           }}>
             <div style={{
-              position: "absolute" as const,
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: "linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, transparent 100%)",
-              pointerEvents: "none" as const
+              ...createGradientOverlay("linear-gradient(135deg, rgba(245, 158, 11, 1) 0%, transparent 100%)", 0.05)
             }} />
             <div style={{ position: "relative" as const }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: DesignSystem.spacing.compact, marginBottom: DesignSystem.spacing.compact }}>
                 <span style={{ fontSize: "24px" }}>💡</span>
                 <h3 style={{ fontSize: "16px", margin: 0, fontWeight: "700", color: "#92400e" }}>
                   Recommendation
                 </h3>
               </div>
-              <p style={{ fontSize: "16px", fontWeight: "600", margin: "0 0 12px 0", color: "#78350f", lineHeight: "1.5" }}>
+              <p style={{ fontSize: "16px", fontWeight: "600", margin: `0 0 ${DesignSystem.spacing.compact} 0`, color: "#78350f", lineHeight: "1.5" }}>
                 {recommendation.action}
               </p>
               {recommendation.reasoning && (
-                <p style={{ fontSize: "14px", margin: "0 0 12px 0", color: "#92400e", lineHeight: "1.6" }}>
+                <p style={{ fontSize: "14px", margin: `0 0 ${DesignSystem.spacing.compact} 0`, color: "#92400e", lineHeight: "1.6" }}>
                   {recommendation.reasoning}
                 </p>
               )}
               {recommendation.nextRun && (
                 <div style={{
-                  padding: "16px",
+                  padding: DesignSystem.spacing.element,
                   background: "rgba(255, 255, 255, 0.6)",
-                  backdropFilter: "blur(10px)",
+                  backdropFilter: DesignSystem.glassmorphism.backdropBlur,
                   borderRadius: "10px",
                   fontSize: "14px",
                   color: "#78350f",
-                  marginTop: "12px",
+                  marginTop: DesignSystem.spacing.compact,
                   border: "1px solid rgba(245, 158, 11, 0.2)"
                 }}>
                   <strong style={{ display: "block", marginBottom: "4px", fontSize: "12px", textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>Next run:</strong>
