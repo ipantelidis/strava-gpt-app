@@ -6,6 +6,7 @@ import {
   activityToSummary,
   calculateAveragePace,
   filterActivitiesByDateRange,
+  UnauthorizedError,
 } from "./strava.js";
 
 const server = new McpServer(
@@ -146,7 +147,7 @@ server.registerWidget(
     let auth = token ? { userId: "manual", accessToken: token } : await getAuth(extra);
     
     if (!auth) {
-      return authErrorResponse();
+      return authErrorResponse("missing_token");
     }
 
     try {
@@ -211,6 +212,11 @@ server.registerWidget(
         isError: false,
       };
     } catch (error) {
+      // Handle 401 Unauthorized errors specifically
+      if (error instanceof UnauthorizedError) {
+        return authErrorResponse("unauthorized");
+      }
+      
       console.error("Error fetching training summary:", error);
       return {
         content: [
@@ -249,7 +255,7 @@ server.registerWidget(
     let auth = token ? { userId: "manual", accessToken: token } : await getAuth(extra);
     
     if (!auth) {
-      return authErrorResponse();
+      return authErrorResponse("missing_token");
     }
 
     try {
@@ -358,6 +364,11 @@ server.registerWidget(
         isError: false,
       };
     } catch (error) {
+      // Handle 401 Unauthorized errors specifically
+      if (error instanceof UnauthorizedError) {
+        return authErrorResponse("unauthorized");
+      }
+      
       console.error("Error comparing weeks:", error);
       return {
         content: [
@@ -397,7 +408,7 @@ server.registerWidget(
     let auth = token ? { userId: "manual", accessToken: token } : await getAuth(extra);
     
     if (!auth) {
-      return authErrorResponse();
+      return authErrorResponse("missing_token");
     }
 
     try {
@@ -490,6 +501,11 @@ server.registerWidget(
         isError: false,
       };
     } catch (error) {
+      // Handle 401 Unauthorized errors specifically
+      if (error instanceof UnauthorizedError) {
+        return authErrorResponse("unauthorized");
+      }
+      
       console.error("Error getting coaching advice:", error);
       return {
         content: [

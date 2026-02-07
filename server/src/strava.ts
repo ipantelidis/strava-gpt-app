@@ -23,6 +23,16 @@ export interface ActivitySummary {
 }
 
 /**
+ * Custom error class for 401 Unauthorized responses
+ */
+export class UnauthorizedError extends Error {
+  constructor(message: string = "Strava API returned 401 Unauthorized") {
+    super(message);
+    this.name = "UnauthorizedError";
+  }
+}
+
+/**
  * Fetch recent activities from Strava
  */
 export async function fetchRecentActivities(
@@ -44,6 +54,11 @@ export async function fetchRecentActivities(
       headers: { Authorization: `Bearer ${accessToken}` },
     },
   );
+
+  // Detect 401 Unauthorized errors
+  if (res.status === 401) {
+    throw new UnauthorizedError("Strava API returned 401 Unauthorized - token is invalid or expired");
+  }
 
   if (!res.ok) {
     throw new Error(`Strava API error: ${res.status} ${res.statusText}`);
