@@ -8,7 +8,8 @@
     "dev": "skybridge dev",
     "build": "skybridge build",
     "start": "skybridge start",
-    "deploy": "alpic deploy"
+    "deploy": "alpic deploy",
+    "test": "vitest"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.2",
@@ -30,7 +31,8 @@
   "devDependencies": {
     "alpic": "^1.83.1",
     "nodemon": "^3.1.11",
-    "tsx": "^4.21.0"
+    "tsx": "^4.21.0",
+    "vitest": "^3.2.4"
   },
   "engines": {
     "node": ">=24.13.0"

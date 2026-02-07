@@ -9,6 +9,11 @@ import {
   filterActivitiesByDateRange,
   UnauthorizedError,
 } from "./strava.js";
+import {
+  getCachedActivities,
+  setCachedActivities,
+  type CacheKey,
+} from "./cache.js";
 
 const server = new McpServer(
   {
@@ -154,12 +159,53 @@ server.registerTool(
     }
 
     try {
-      // Fetch activities with optional details
+      // Generate cache key
+      const cacheKey: CacheKey = {
+        userId: auth.userId,
+        days,
+        includeDetails,
+      };
+
+      // Check cache first
+      const cachedEntry = getCachedActivities(cacheKey);
+      
+      if (cachedEntry) {
+        // Return cached data
+        return {
+          structuredContent: {
+            data: cachedEntry.data,
+            metadata: {
+              fetchedAt: cachedEntry.fetchedAt,
+              source: "strava",
+              cached: true,
+              count: cachedEntry.metadata.count,
+              dateRange: {
+                days,
+                from: new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                to: new Date().toISOString().split('T')[0],
+              },
+              includeDetails,
+            },
+          },
+          content: [
+            {
+              type: "text",
+              text: `Retrieved ${cachedEntry.metadata.count} running activities from cache (last ${days} days${includeDetails ? ' with detailed data' : ''}).`,
+            },
+          ],
+          isError: false,
+        };
+      }
+
+      // Cache miss - fetch from Strava
       const activities = await fetchActivitiesWithDetails(
         auth.accessToken,
         days,
         includeDetails
       );
+
+      // Store in cache
+      setCachedActivities(cacheKey, activities);
 
       // Return structured data output
       return {
