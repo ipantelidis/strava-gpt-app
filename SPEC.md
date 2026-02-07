@@ -429,12 +429,16 @@ See [Testing Guide](docs/TESTING_GUIDE.md) for detailed testing patterns and bes
 
 ### OAuth Flow
 
-1. User initiates connection in ChatGPT
-2. App redirects to Strava authorization page
-3. User grants permissions
-4. Strava redirects back with authorization code
-5. App exchanges code for access token + refresh token
-6. Tokens stored in user context for session duration
+1. User initiates any action requiring Strava data
+2. ChatGPT detects missing authorization
+3. ChatGPT shows "Connect Strava" button
+4. OAuth popup opens with Strava authorization page
+5. User clicks "Authorize" on Strava
+6. Callback automatically exchanges code for access token
+7. User is immediately connected and can use all features
+8. Tokens are managed automatically by ChatGPT (refresh, expiration, etc.)
+
+**No manual steps required!** The entire flow is automated through the standard OAuth 2.0 protocol.
 
 ---
 

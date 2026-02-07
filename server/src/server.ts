@@ -47,89 +47,26 @@ server.registerWidget(
   },
 );
 
-// Helper tool: Exchange Strava authorization code for access token
+// DEPRECATED: OAuth flow now handles authentication automatically
+// This tool is kept for backward compatibility but should not be used
 server.registerTool(
   "exchange_strava_code",
   {
-    description: "⚠️ REQUIRED FIRST STEP: Before analyzing any training data, users MUST authorize Strava access. Guide them to: 1) Click this authorization link: https://www.strava.com/oauth/authorize?client_id=200939&response_type=code&redirect_uri=http://localhost&approval_prompt=force&scope=read,activity:read_all 2) Click 'Authorize' on Strava 3) Copy the 'code' parameter from the redirect URL 4) Paste it here to exchange for an access token. If authorization fails or token is invalid, ALWAYS prompt user to get a fresh code by repeating these steps.",
+    description: "⚠️ DEPRECATED: This tool is no longer needed. Authentication is now handled automatically through OAuth. When you need Strava access, ChatGPT will prompt you to connect your account with a simple 'Connect Strava' button. No manual code exchange required!",
     inputSchema: {
-      code: z.string().describe("The authorization code from the Strava redirect URL (after 'code=')"),
+      code: z.string().describe("Authorization code (deprecated - OAuth handles this automatically)"),
     },
   },
-  async ({ code }) => {
-    try {
-      console.log("Exchanging code for token...", { code: code.substring(0, 10) + "..." });
-      
-      const clientId = process.env.STRAVA_CLIENT_ID;
-      const clientSecret = process.env.STRAVA_CLIENT_SECRET;
-      
-      if (!clientId || !clientSecret) {
-        console.error("Missing Strava credentials");
-        return {
-          content: [
-            {
-              type: "text",
-              text: "Server configuration error: Strava credentials not set. Please contact support.",
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      const response = await fetch("https://www.strava.com/oauth/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          client_id: clientId,
-          client_secret: clientSecret,
-          code: code,
-          grant_type: "authorization_code",
-        }),
-      });
-
-      const responseText = await response.text();
-      console.log("Strava response:", response.status, responseText.substring(0, 100));
-
-      if (!response.ok) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Failed to exchange code: ${response.status} ${response.statusText}. ${responseText}`,
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      const data = JSON.parse(responseText);
-
-      return {
-        structuredContent: {
-          access_token: data.access_token,
-          refresh_token: data.refresh_token,
-          expires_at: data.expires_at,
-          athlete: data.athlete,
+  async (_input) => {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "⚠️ This tool is deprecated. Please use the automatic OAuth flow instead.\n\nWhen you try to access your training data, ChatGPT will automatically prompt you to connect your Strava account. Just click 'Connect Strava' and authorize - no manual code copying needed!",
         },
-        content: [
-          {
-            type: "text",
-            text: `✅ Successfully authorized! Your access token: ${data.access_token}\n\nNow you can use this token with the training widgets by saying: "Analyze my training using token: ${data.access_token}"`,
-          },
-        ],
-        isError: false,
-      };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-          },
-        ],
-        isError: true,
-      };
-    }
+      ],
+      isError: true,
+    };
   },
 );
 
@@ -173,7 +110,7 @@ EXAMPLE QUERIES:
       token: z
         .string()
         .optional()
-        .describe("Strava access token (required - get from exchange_strava_code tool if not provided)"),
+        .describe("Strava access token (optional - OAuth handles authentication automatically)"),
     },
   },
   async ({ days, includeDetails, token }, extra) => {
@@ -321,7 +258,7 @@ EXAMPLE QUERIES:
       token: z
         .string()
         .optional()
-        .describe("Strava access token (required - get from exchange_strava_code tool if not provided)"),
+        .describe("Strava access token (optional - OAuth handles authentication automatically)"),
     },
   },
   async ({ days, groupBy, token }, extra) => {
@@ -558,7 +495,7 @@ EXAMPLE QUERIES:
       token: z
         .string()
         .optional()
-        .describe("Strava access token (required - get from exchange_strava_code tool if not provided)"),
+        .describe("Strava access token (optional - OAuth handles authentication automatically)"),
     },
   },
   async ({ days, token }, extra) => {
@@ -743,7 +680,7 @@ NOTE: You need activity IDs. If user doesn't provide them, first call fetch_acti
       token: z
         .string()
         .optional()
-        .describe("Strava access token (required - get from exchange_strava_code tool if not provided)"),
+        .describe("Strava access token (optional - OAuth handles authentication automatically)"),
     },
   },
   async ({ run1Id, run2Id, token }, extra) => {
@@ -910,7 +847,7 @@ INTERPRETATION:
       token: z
         .string()
         .optional()
-        .describe("Strava access token (required - get from exchange_strava_code tool if not provided)"),
+        .describe("Strava access token (optional - OAuth handles authentication automatically)"),
     },
   },
   async ({ days, token }, extra) => {
@@ -1132,7 +1069,7 @@ EXAMPLE QUERIES:
       token: z
         .string()
         .optional()
-        .describe("Strava access token (required - get from exchange_strava_code tool if not provided)"),
+        .describe("Strava access token (optional - OAuth handles authentication automatically)"),
     },
   },
   async ({ days, token }, extra) => {
@@ -1267,7 +1204,7 @@ EXAMPLE QUERIES:
       token: z
         .string()
         .optional()
-        .describe("Strava access token (required - get from exchange_strava_code tool if not provided)"),
+        .describe("Strava access token (optional - OAuth handles authentication automatically)"),
     },
   },
   async ({ currentWeekStart, token }, extra) => {
@@ -1791,7 +1728,7 @@ NOTE: Requires either a route name (searches activity names) or a polyline (for 
       token: z
         .string()
         .optional()
-        .describe("Strava access token (required - get from exchange_strava_code tool if not provided)"),
+        .describe("Strava access token (optional - OAuth handles authentication automatically)"),
     },
   },
   async ({ polyline, routeName, days, token }, extra) => {
@@ -2066,7 +2003,7 @@ EXAMPLE QUERIES:
       token: z
         .string()
         .optional()
-        .describe("Strava access token (required - get from exchange_strava_code tool if not provided)"),
+        .describe("Strava access token (optional - OAuth handles authentication automatically)"),
     },
   },
   async ({ context: _context, token }, extra) => {

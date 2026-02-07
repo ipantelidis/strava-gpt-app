@@ -74,63 +74,42 @@ export function is401Error(response: Response): boolean {
 }
 
 /**
- * Create structured auth error with step-by-step instructions
+ * Create structured auth error with simplified message
+ * The MCP host (ChatGPT) will handle the OAuth popup automatically
  */
 export function createAuthError(type: AuthError["type"]): AuthError {
-  const clientId = process.env.STRAVA_CLIENT_ID || "200939";
-  const authUrl = `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=http://localhost&approval_prompt=force&scope=read,activity:read_all`;
-  
   const errors: Record<AuthError["type"], AuthError> = {
     missing_token: {
       type: "missing_token",
-      message: "No Strava access token provided. You must authorize Strava access before using this feature.",
+      message: "Please connect your Strava account to access your training data.",
       instructions: [
-        "Step 1: Click this authorization link to connect your Strava account:",
-        authUrl,
-        "Step 2: Click 'Authorize' on the Strava page",
-        "Step 3: After authorization, you'll be redirected to a URL like: http://localhost/?state=&code=XXXXX&scope=read,activity:read_all",
-        "Step 4: Copy the code parameter from that URL (the part after 'code=')",
-        "Step 5: Use the exchange_strava_code tool with that code to get your access token",
-        "Step 6: Once you have the token, provide it when calling this tool using the 'token' parameter"
+        "Click 'Connect Strava' to authorize access to your activities.",
+        "You'll be redirected to Strava to grant permission.",
+        "After authorization, you'll be automatically connected."
       ]
     },
     invalid_token: {
       type: "invalid_token",
-      message: "The provided Strava access token is invalid or malformed.",
+      message: "Your Strava connection is invalid.",
       instructions: [
-        "Your token may be incorrect or corrupted. Please get a fresh token:",
-        "Step 1: Click this authorization link to re-authorize your Strava account:",
-        authUrl,
-        "Step 2: Click 'Authorize' on the Strava page",
-        "Step 3: Copy the code from the redirect URL (after 'code=')",
-        "Step 4: Use the exchange_strava_code tool with that code to get a new access token",
-        "Step 5: Try again with the new token"
+        "Please reconnect your Strava account.",
+        "Click 'Connect Strava' to re-authorize."
       ]
     },
     expired_token: {
       type: "expired_token",
-      message: "Your Strava access token has expired. Strava tokens typically expire after 6 hours.",
+      message: "Your Strava connection has expired.",
       instructions: [
-        "Your token has expired and needs to be refreshed:",
-        "Step 1: Click this authorization link to re-authorize your Strava account:",
-        authUrl,
-        "Step 2: Click 'Authorize' on the Strava page",
-        "Step 3: Copy the code from the redirect URL (after 'code=')",
-        "Step 4: Use the exchange_strava_code tool with that code to get a new access token",
-        "Step 5: Try again with the new token"
+        "Strava tokens expire after 6 hours for security.",
+        "Please reconnect your Strava account to continue."
       ]
     },
     unauthorized: {
       type: "unauthorized",
-      message: "Strava returned a 401 Unauthorized error. This usually means your token is invalid or expired.",
+      message: "Unable to access your Strava data.",
       instructions: [
-        "The Strava API rejected your token. Please re-authorize:",
-        "Step 1: Click this authorization link to connect your Strava account:",
-        authUrl,
-        "Step 2: Click 'Authorize' on the Strava page",
-        "Step 3: Copy the code from the redirect URL (after 'code=')",
-        "Step 4: Use the exchange_strava_code tool with that code to get a new access token",
-        "Step 5: Try again with the new token"
+        "Your authorization may have been revoked or expired.",
+        "Please reconnect your Strava account."
       ]
     }
   };
