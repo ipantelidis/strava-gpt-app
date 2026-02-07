@@ -4,10 +4,13 @@ import { getAuth, authErrorResponse } from "./auth.js";
 import {
   fetchRecentActivities,
   fetchActivitiesWithDetails,
+  fetchDetailedActivity,
   activityToSummary,
   calculateAveragePace,
   filterActivitiesByDateRange,
+  metersPerSecondToPace,
   UnauthorizedError,
+  type StravaActivity,
 } from "./strava.js";
 import {
   getCachedActivities,
@@ -244,6 +247,702 @@ server.registerTool(
           {
             type: "text",
             text: `Error fetching activities: ${error instanceof Error ? error.message : "Unknown error"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
+// Data Tool: Calculate Pace Distribution
+server.registerTool(
+  "calculate_pace_distribution",
+  {
+    description: "⚠️ REQUIRES AUTHORIZATION: Analyze pace distribution across running activities. Groups activities by run type (easy, long, hard, recovery) or distance range, then calculates statistics (mean, median, std dev) for each group. Use this to understand pace patterns across different types of runs.",
+    inputSchema: {
+      days: z
+        .number()
+        .optional()
+        .default(30)
+        .describe("Number of days to analyze (default: 30)"),
+      groupBy: z
+        .enum(["runType", "distanceRange"])
+        .describe("Grouping criteria: 'runType' (easy/long/hard/recovery) or 'distanceRange' (short/medium/long)"),
+      token: z
+        .string()
+        .optional()
+        .describe("Strava access token (required - get from exchange_strava_code tool if not provided)"),
+    },
+  },
+  async ({ days, groupBy, token }, extra) => {
+    // Try manual token first, then OAuth
+    let auth = token ? { userId: "manual", accessToken: token } : await getAuth(extra);
+    
+    if (!auth) {
+      return authErrorResponse("missing_token");
+    }
+
+    try {
+      // Fetch activities
+      const afterTimestamp = Math.floor(Date.now() / 1000 - days * 24 * 60 * 60);
+      const activities = await fetchRecentActivities(auth.accessToken, afterTimestamp);
+
+      if (activities.length === 0) {
+        return {
+          structuredContent: {
+            data: {
+              groups: [],
+              groupBy,
+            },
+            metadata: {
+              fetchedAt: new Date().toISOString(),
+              source: "strava",
+              cached: false,
+              totalActivities: 0,
+            },
+          },
+          content: [
+            {
+              type: "text",
+              text: `No running activities found in the last ${days} days.`,
+            },
+          ],
+          isError: false,
+        };
+      }
+
+      // Calculate average pace for all activities to determine thresholds
+      const allPaces = activities.map(a => 1000 / a.average_speed); // seconds per km
+      const avgPace = allPaces.reduce((sum, p) => sum + p, 0) / allPaces.length;
+
+      // Group activities based on criteria
+      const groups: Map<string, StravaActivity[]> = new Map();
+
+      if (groupBy === "runType") {
+        // Classify by run type: easy, long, hard, recovery
+        // Easy: pace slower than average, distance < 15km
+        // Long: distance >= 15km
+        // Hard: pace faster than average, distance < 15km
+        // Recovery: very slow pace (>15% slower than average), short distance
+        
+        for (const activity of activities) {
+          const pace = 1000 / activity.average_speed; // seconds per km
+          const distanceKm = activity.distance / 1000;
+          
+          let runType: string;
+          
+          if (distanceKm >= 15) {
+            runType = "long";
+          } else if (pace > avgPace * 1.15) {
+            runType = "recovery";
+          } else if (pace < avgPace * 0.95) {
+            runType = "hard";
+          } else {
+            runType = "easy";
+          }
+          
+          if (!groups.has(runType)) {
+            groups.set(runType, []);
+          }
+          groups.get(runType)!.push(activity);
+        }
+      } else {
+        // Group by distance range: short (<5km), medium (5-15km), long (>=15km)
+        for (const activity of activities) {
+          const distanceKm = activity.distance / 1000;
+          
+          let range: string;
+          if (distanceKm < 5) {
+            range = "short";
+          } else if (distanceKm < 15) {
+            range = "medium";
+          } else {
+            range = "long";
+          }
+          
+          if (!groups.has(range)) {
+            groups.set(range, []);
+          }
+          groups.get(range)!.push(activity);
+        }
+      }
+
+      // Calculate statistics for each group
+      const groupStats = Array.from(groups.entries()).map(([groupName, groupActivities]) => {
+        const paces = groupActivities.map(a => 1000 / a.average_speed); // seconds per km
+        
+        // Calculate mean
+        const mean = paces.reduce((sum, p) => sum + p, 0) / paces.length;
+        
+        // Calculate median
+        const sortedPaces = [...paces].sort((a, b) => a - b);
+        const median = sortedPaces.length % 2 === 0
+          ? (sortedPaces[sortedPaces.length / 2 - 1] + sortedPaces[sortedPaces.length / 2]) / 2
+          : sortedPaces[Math.floor(sortedPaces.length / 2)];
+        
+        // Calculate standard deviation
+        const variance = paces.reduce((sum, p) => sum + Math.pow(p - mean, 2), 0) / paces.length;
+        const stdDev = Math.sqrt(variance);
+        
+        // Convert to pace format
+        const formatPace = (seconds: number) => {
+          const minutes = Math.floor(seconds / 60);
+          const secs = Math.round(seconds % 60);
+          return `${minutes}:${secs.toString().padStart(2, "0")}`;
+        };
+        
+        return {
+          group: groupName,
+          count: groupActivities.length,
+          statistics: {
+            mean: formatPace(mean),
+            median: formatPace(median),
+            stdDev: Math.round(stdDev),
+            meanSeconds: Math.round(mean),
+            medianSeconds: Math.round(median),
+          },
+          activities: groupActivities.map(a => ({
+            id: a.id,
+            name: a.name,
+            date: a.start_date_local.split("T")[0],
+            distance: Math.round((a.distance / 1000) * 10) / 10,
+            pace: metersPerSecondToPace(a.average_speed),
+          })),
+        };
+      });
+
+      // Sort groups by logical order
+      const groupOrder = groupBy === "runType" 
+        ? ["recovery", "easy", "hard", "long"]
+        : ["short", "medium", "long"];
+      
+      groupStats.sort((a, b) => {
+        const aIndex = groupOrder.indexOf(a.group);
+        const bIndex = groupOrder.indexOf(b.group);
+        return aIndex - bIndex;
+      });
+
+      return {
+        structuredContent: {
+          data: {
+            groups: groupStats,
+            groupBy,
+            totalActivities: activities.length,
+          },
+          metadata: {
+            fetchedAt: new Date().toISOString(),
+            source: "strava",
+            cached: false,
+            dateRange: {
+              days,
+              from: new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              to: new Date().toISOString().split('T')[0],
+            },
+          },
+        },
+        content: [
+          {
+            type: "text",
+            text: `Analyzed ${activities.length} activities grouped by ${groupBy}. Found ${groupStats.length} groups: ${groupStats.map(g => `${g.group} (${g.count})`).join(", ")}`,
+          },
+        ],
+        isError: false,
+      };
+    } catch (error) {
+      // Handle 401 Unauthorized errors specifically
+      if (error instanceof UnauthorizedError) {
+        return authErrorResponse("unauthorized");
+      }
+      
+      console.error("Error calculating pace distribution:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error calculating pace distribution: ${error instanceof Error ? error.message : "Unknown error"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
+// Data Tool: Analyze Elevation Impact
+server.registerTool(
+  "analyze_elevation_impact",
+  {
+    description: "⚠️ REQUIRES AUTHORIZATION: Analyze how elevation gain impacts running pace. Calculates pace adjustments based on elevation gain and computes climb-adjusted pace for each run. Use this to understand how hills affect your performance and compare runs on different terrain.",
+    inputSchema: {
+      days: z
+        .number()
+        .optional()
+        .default(30)
+        .describe("Number of days to analyze (default: 30)"),
+      token: z
+        .string()
+        .optional()
+        .describe("Strava access token (required - get from exchange_strava_code tool if not provided)"),
+    },
+  },
+  async ({ days, token }, extra) => {
+    // Try manual token first, then OAuth
+    let auth = token ? { userId: "manual", accessToken: token } : await getAuth(extra);
+    
+    if (!auth) {
+      return authErrorResponse("missing_token");
+    }
+
+    try {
+      // Fetch activities
+      const afterTimestamp = Math.floor(Date.now() / 1000 - days * 24 * 60 * 60);
+      const activities = await fetchRecentActivities(auth.accessToken, afterTimestamp);
+
+      if (activities.length === 0) {
+        return {
+          structuredContent: {
+            data: {
+              activities: [],
+              summary: {
+                totalActivities: 0,
+                averageElevationGain: 0,
+                averagePaceAdjustment: 0,
+              },
+            },
+            metadata: {
+              fetchedAt: new Date().toISOString(),
+              source: "strava",
+              cached: false,
+            },
+          },
+          content: [
+            {
+              type: "text",
+              text: `No running activities found in the last ${days} days.`,
+            },
+          ],
+          isError: false,
+        };
+      }
+
+      // Calculate elevation impact for each activity
+      // Rule of thumb: ~10-15 seconds per 100m of elevation gain
+      // We'll use 12 seconds per 100m as a standard adjustment
+      const SECONDS_PER_100M_ELEVATION = 12;
+
+      const analysisResults = activities.map(activity => {
+        const distanceKm = activity.distance / 1000;
+        const elevationGainM = activity.total_elevation_gain;
+        const actualPaceSecondsPerKm = 1000 / activity.average_speed;
+        
+        // Calculate pace adjustment based on elevation
+        // Adjustment = (elevation gain / 100) * seconds per 100m / distance in km
+        const paceAdjustmentSecondsPerKm = distanceKm > 0
+          ? (elevationGainM / 100) * SECONDS_PER_100M_ELEVATION / distanceKm
+          : 0;
+        
+        // Climb-adjusted pace (what pace would be on flat ground)
+        const adjustedPaceSecondsPerKm = actualPaceSecondsPerKm - paceAdjustmentSecondsPerKm;
+        
+        // Format paces
+        const formatPace = (seconds: number) => {
+          const minutes = Math.floor(seconds / 60);
+          const secs = Math.round(seconds % 60);
+          return `${minutes}:${secs.toString().padStart(2, "0")}`;
+        };
+        
+        return {
+          id: activity.id,
+          name: activity.name,
+          date: activity.start_date_local.split("T")[0],
+          distance: Math.round(distanceKm * 10) / 10,
+          elevationGain: Math.round(elevationGainM),
+          actualPace: formatPace(actualPaceSecondsPerKm),
+          adjustedPace: formatPace(adjustedPaceSecondsPerKm),
+          paceAdjustment: Math.round(paceAdjustmentSecondsPerKm),
+          elevationPerKm: distanceKm > 0 ? Math.round(elevationGainM / distanceKm) : 0,
+        };
+      });
+
+      // Calculate summary statistics
+      const totalElevationGain = activities.reduce((sum, a) => sum + a.total_elevation_gain, 0);
+      const averageElevationGain = Math.round(totalElevationGain / activities.length);
+      
+      const totalPaceAdjustment = analysisResults.reduce((sum, r) => sum + r.paceAdjustment, 0);
+      const averagePaceAdjustment = Math.round(totalPaceAdjustment / analysisResults.length);
+
+      // Sort by elevation gain (highest first) for easier analysis
+      analysisResults.sort((a, b) => b.elevationGain - a.elevationGain);
+
+      return {
+        structuredContent: {
+          data: {
+            activities: analysisResults,
+            summary: {
+              totalActivities: activities.length,
+              averageElevationGain,
+              averagePaceAdjustment,
+              adjustmentMethod: `${SECONDS_PER_100M_ELEVATION} seconds per 100m elevation gain`,
+            },
+          },
+          metadata: {
+            fetchedAt: new Date().toISOString(),
+            source: "strava",
+            cached: false,
+            dateRange: {
+              days,
+              from: new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              to: new Date().toISOString().split('T')[0],
+            },
+          },
+        },
+        content: [
+          {
+            type: "text",
+            text: `Analyzed elevation impact for ${activities.length} activities. Average elevation gain: ${averageElevationGain}m, Average pace adjustment: ${averagePaceAdjustment}s/km`,
+          },
+        ],
+        isError: false,
+      };
+    } catch (error) {
+      // Handle 401 Unauthorized errors specifically
+      if (error instanceof UnauthorizedError) {
+        return authErrorResponse("unauthorized");
+      }
+      
+      console.error("Error analyzing elevation impact:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error analyzing elevation impact: ${error instanceof Error ? error.message : "Unknown error"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
+// Data Tool: Get Run Comparison
+server.registerTool(
+  "get_run_comparison",
+  {
+    description: "⚠️ REQUIRES AUTHORIZATION: Compare two specific runs side-by-side. Returns structured comparison data with aligned metrics, deltas, and trend analysis. Use this when you need to analyze performance differences between two specific activities.",
+    inputSchema: {
+      run1Id: z
+        .number()
+        .describe("Strava activity ID of the first run"),
+      run2Id: z
+        .number()
+        .describe("Strava activity ID of the second run"),
+      token: z
+        .string()
+        .optional()
+        .describe("Strava access token (required - get from exchange_strava_code tool if not provided)"),
+    },
+  },
+  async ({ run1Id, run2Id, token }, extra) => {
+    // Try manual token first, then OAuth
+    let auth = token ? { userId: "manual", accessToken: token } : await getAuth(extra);
+    
+    if (!auth) {
+      return authErrorResponse("missing_token");
+    }
+
+    try {
+      // Fetch both activities with detailed data
+      const [run1, run2] = await Promise.all([
+        fetchDetailedActivity(auth.accessToken, run1Id),
+        fetchDetailedActivity(auth.accessToken, run2Id),
+      ]);
+
+      // Convert to activity summaries
+      const run1Summary = activityToSummary(run1);
+      const run2Summary = activityToSummary(run2);
+
+      // Calculate deltas
+      const distanceDelta = run2.distance - run1.distance;
+      const distancePercentage = run1.distance > 0 
+        ? Math.round((distanceDelta / run1.distance) * 100 * 10) / 10
+        : 0;
+
+      // Calculate pace delta (in seconds per km)
+      const run1PaceSecondsPerKm = 1000 / run1.average_speed; // seconds per km
+      const run2PaceSecondsPerKm = 1000 / run2.average_speed;
+      const paceDelta = run2PaceSecondsPerKm - run1PaceSecondsPerKm;
+
+      // Calculate elevation delta
+      const elevationDelta = run2.total_elevation_gain - run1.total_elevation_gain;
+
+      // Calculate heart rate delta (if available)
+      let heartRateDelta: number | undefined;
+      if (run1.average_heartrate && run2.average_heartrate) {
+        heartRateDelta = run2.average_heartrate - run1.average_heartrate;
+      }
+
+      // Determine trend
+      // Improving: faster pace (negative delta) or significantly more distance
+      // Declining: slower pace (positive delta) or significantly less distance
+      // Stable: minimal changes
+      let trend: "improving" | "declining" | "stable" = "stable";
+      
+      if (paceDelta < -10 || (distancePercentage > 15 && paceDelta < 5)) {
+        trend = "improving";
+      } else if (paceDelta > 10 || (distancePercentage < -15 && paceDelta > -5)) {
+        trend = "declining";
+      }
+
+      // Build comparison data model
+      const comparison = {
+        run1: {
+          id: run1.id,
+          name: run1.name,
+          date: run1Summary.date,
+          distance: run1Summary.distance,
+          pace: run1Summary.pace,
+          duration: run1Summary.duration,
+          elevation: Math.round(run1.total_elevation_gain),
+          heartRate: run1.average_heartrate,
+        },
+        run2: {
+          id: run2.id,
+          name: run2.name,
+          date: run2Summary.date,
+          distance: run2Summary.distance,
+          pace: run2Summary.pace,
+          duration: run2Summary.duration,
+          elevation: Math.round(run2.total_elevation_gain),
+          heartRate: run2.average_heartrate,
+        },
+        deltas: {
+          distance: distancePercentage,
+          pace: Math.round(paceDelta),
+          elevation: Math.round(elevationDelta),
+          heartRate: heartRateDelta ? Math.round(heartRateDelta) : undefined,
+        },
+        trend,
+      };
+
+      return {
+        structuredContent: {
+          data: comparison,
+          metadata: {
+            fetchedAt: new Date().toISOString(),
+            source: "strava",
+            cached: false,
+          },
+        },
+        content: [
+          {
+            type: "text",
+            text: `Compared runs: ${run1.name} vs ${run2.name}. Trend: ${trend}. Distance: ${distancePercentage > 0 ? "+" : ""}${distancePercentage}%, Pace: ${paceDelta > 0 ? "+" : ""}${Math.round(paceDelta)}s/km`,
+          },
+        ],
+        isError: false,
+      };
+    } catch (error) {
+      // Handle 401 Unauthorized errors specifically
+      if (error instanceof UnauthorizedError) {
+        return authErrorResponse("unauthorized");
+      }
+      
+      console.error("Error comparing runs:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error comparing runs: ${error instanceof Error ? error.message : "Unknown error"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
+// Data Tool: Compute Training Load
+server.registerTool(
+  "compute_training_load",
+  {
+    description: "⚠️ REQUIRES AUTHORIZATION: Calculate training load metrics including acute load (7 days), chronic load (28 days), and acute:chronic ratio. Use this to assess training volume, intensity, and injury risk based on load ratios.",
+    inputSchema: {
+      days: z
+        .number()
+        .optional()
+        .default(28)
+        .describe("Number of days to analyze (default: 28, minimum 28 for chronic load calculation)"),
+      token: z
+        .string()
+        .optional()
+        .describe("Strava access token (required - get from exchange_strava_code tool if not provided)"),
+    },
+  },
+  async ({ days, token }, extra) => {
+    // Try manual token first, then OAuth
+    let auth = token ? { userId: "manual", accessToken: token } : await getAuth(extra);
+    
+    if (!auth) {
+      return authErrorResponse("missing_token");
+    }
+
+    try {
+      // Ensure we have at least 28 days for chronic load calculation
+      const analyzeDays = Math.max(days, 28);
+      
+      // Fetch activities
+      const afterTimestamp = Math.floor(Date.now() / 1000 - analyzeDays * 24 * 60 * 60);
+      const activities = await fetchRecentActivities(auth.accessToken, afterTimestamp);
+
+      if (activities.length === 0) {
+        return {
+          structuredContent: {
+            data: {
+              period: {
+                start: new Date(Date.now() - analyzeDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                end: new Date().toISOString().split('T')[0],
+              },
+              totalDistance: 0,
+              totalTime: 0,
+              runCount: 0,
+              averagePace: "0:00",
+              loadScore: 0,
+              acuteLoad: 0,
+              chronicLoad: 0,
+              ratio: 0,
+            },
+            metadata: {
+              fetchedAt: new Date().toISOString(),
+              source: "strava",
+              cached: false,
+            },
+          },
+          content: [
+            {
+              type: "text",
+              text: `No running activities found in the last ${analyzeDays} days.`,
+            },
+          ],
+          isError: false,
+        };
+      }
+
+      // Calculate date boundaries
+      const now = new Date();
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const twentyEightDaysAgo = new Date(now);
+      twentyEightDaysAgo.setDate(twentyEightDaysAgo.getDate() - 28);
+
+      // Filter activities for acute load (last 7 days)
+      const acuteActivities = filterActivitiesByDateRange(activities, sevenDaysAgo, now);
+      
+      // Filter activities for chronic load (last 28 days)
+      const chronicActivities = filterActivitiesByDateRange(activities, twentyEightDaysAgo, now);
+
+      // Calculate overall metrics (for the requested period)
+      const startDate = new Date(Date.now() - analyzeDays * 24 * 60 * 60 * 1000);
+      const periodActivities = filterActivitiesByDateRange(activities, startDate, now);
+
+      const totalDistance = Math.round(
+        periodActivities.reduce((sum, a) => sum + a.distance / 1000, 0) * 10
+      ) / 10;
+      
+      const totalTime = Math.round(
+        periodActivities.reduce((sum, a) => sum + a.moving_time / 60, 0)
+      );
+      
+      const runCount = periodActivities.length;
+      
+      const averagePace = calculateAveragePace(periodActivities);
+
+      // Calculate acute load (7 days)
+      // Load = distance * intensity factor
+      // Intensity factor based on pace relative to average
+      const avgSpeed = periodActivities.length > 0
+        ? periodActivities.reduce((sum, a) => sum + a.average_speed, 0) / periodActivities.length
+        : 0;
+
+      const calculateLoad = (acts: typeof activities) => {
+        return acts.reduce((sum, a) => {
+          const distanceKm = a.distance / 1000;
+          // Intensity factor: faster runs get higher weight
+          const intensityFactor = avgSpeed > 0 ? a.average_speed / avgSpeed : 1;
+          return sum + (distanceKm * intensityFactor);
+        }, 0);
+      };
+
+      const acuteLoad = Math.round(calculateLoad(acuteActivities) * 10) / 10;
+      const chronicLoad = Math.round(calculateLoad(chronicActivities) * 10) / 10;
+
+      // Calculate acute:chronic ratio
+      // Ratio < 0.8: undertraining
+      // Ratio 0.8-1.3: optimal (sweet spot)
+      // Ratio > 1.5: high injury risk
+      const ratio = chronicLoad > 0 
+        ? Math.round((acuteLoad / chronicLoad) * 100) / 100
+        : 0;
+
+      // Calculate overall load score (normalized to 0-100 scale)
+      // Based on weekly distance and intensity
+      const weeklyDistance = acuteLoad / 1; // Already weighted by intensity
+      const loadScore = Math.min(100, Math.round(weeklyDistance * 2));
+
+      // Build training load data model
+      const trainingLoad = {
+        period: {
+          start: startDate.toISOString().split('T')[0],
+          end: now.toISOString().split('T')[0],
+        },
+        totalDistance,
+        totalTime,
+        runCount,
+        averagePace,
+        loadScore,
+        acuteLoad,
+        chronicLoad,
+        ratio,
+      };
+
+      return {
+        structuredContent: {
+          data: trainingLoad,
+          metadata: {
+            fetchedAt: new Date().toISOString(),
+            source: "strava",
+            cached: false,
+            dateRange: {
+              days: analyzeDays,
+              from: startDate.toISOString().split('T')[0],
+              to: now.toISOString().split('T')[0],
+            },
+          },
+        },
+        content: [
+          {
+            type: "text",
+            text: `Training load calculated: Acute (7d): ${acuteLoad}, Chronic (28d): ${chronicLoad}, Ratio: ${ratio}. ${
+              ratio < 0.8 ? "Consider increasing training volume." :
+              ratio > 1.5 ? "⚠️ High injury risk - consider reducing load." :
+              "Optimal training load range."
+            }`,
+          },
+        ],
+        isError: false,
+      };
+    } catch (error) {
+      // Handle 401 Unauthorized errors specifically
+      if (error instanceof UnauthorizedError) {
+        return authErrorResponse("unauthorized");
+      }
+      
+      console.error("Error computing training load:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error computing training load: ${error instanceof Error ? error.message : "Unknown error"}`,
           },
         ],
         isError: true,
