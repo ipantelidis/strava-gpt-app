@@ -1,3 +1,17 @@
 {
-  "$schema": "https://assets.alpic.ai/alpic.json"
+  "$schema": "https://assets.alpic.ai/alpic.json",
+  "name": "strava-running-coach",
+  "runtime": "node24",
+  "transport": "streamablehttp",
+  "build": {
+    "command": "npm run build"
+  },
+  "start": {
+    "command": "npm run start"
+  },
+  "env": {
+    "STRAVA_CLIENT_ID": "",
+    "STRAVA_CLIENT_SECRET": "",
+    "NODE_ENV": "production"
+  }
 }
