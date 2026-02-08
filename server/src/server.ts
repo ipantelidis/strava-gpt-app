@@ -2848,6 +2848,67 @@ NOTE: Requires either a route name (searches activity names) or a polyline (for 
   },
 );
 
+// Visualization Widget: Render Route Map
+server.registerWidget(
+  "render_route_map",
+  {
+    description: "Display an interactive route map with elevation profile, waypoints, and points of interest. Shows the route path, start/finish points, elevation changes, and turn-by-turn directions.",
+  },
+  {
+    description: "Render a route map with path visualization, elevation profile, and POIs",
+    inputSchema: {
+      route: z.object({
+        path: z.array(z.object({
+          lat: z.number(),
+          lng: z.number(),
+        })).describe("Array of GPS coordinates defining the route path"),
+        waypoints: z.array(z.object({
+          lat: z.number(),
+          lng: z.number(),
+          instruction: z.string(),
+        })).optional().describe("Turn-by-turn waypoints with instructions"),
+        pointsOfInterest: z.array(z.object({
+          type: z.enum(["water", "restroom", "emergency", "landmark"]),
+          lat: z.number(),
+          lng: z.number(),
+          name: z.string(),
+          description: z.string().optional(),
+        })).optional().describe("Points of interest along the route"),
+        elevationProfile: z.array(z.object({
+          distance: z.number().describe("Distance from start in km"),
+          elevation: z.number().describe("Elevation in meters"),
+        })).optional().describe("Elevation data points"),
+        name: z.string().optional().describe("Route name"),
+        distance: z.number().optional().describe("Total distance in km"),
+        elevationGain: z.number().optional().describe("Total elevation gain in meters"),
+        difficulty: z.enum(["easy", "moderate", "hard"]).optional().describe("Route difficulty"),
+        highlights: z.array(z.string()).optional().describe("Route highlights"),
+      }).describe("Route data to display"),
+      config: z.object({
+        showElevation: z.boolean().optional().describe("Show elevation profile (default: true)"),
+        showPOIs: z.boolean().optional().describe("Show points of interest (default: true)"),
+        showWaypoints: z.boolean().optional().describe("Show turn-by-turn directions (default: true)"),
+        mapStyle: z.enum(["standard", "satellite", "terrain"]).optional().describe("Map style"),
+      }).optional().describe("Display configuration"),
+    },
+  },
+  async ({ route, config }) => {
+    return {
+      structuredContent: {
+        route,
+        config,
+      },
+      content: [
+        {
+          type: "text",
+          text: `Route map: ${route.name || "Running route"} - ${route.distance?.toFixed(1) || "N/A"} km${route.elevationGain ? `, ${Math.round(route.elevationGain)}m elevation gain` : ""}`,
+        },
+      ],
+      isError: false,
+    };
+  },
+);
+
 
 
 export default server;
