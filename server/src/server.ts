@@ -35,19 +35,79 @@ const server = new McpServer(
   { capabilities: {} },
 );
 
-// Widget: Connect Strava Account
-// Renders UI with authorization button
+// Widget: Connect Strava Account (with auth check)
+// Renders UI with authorization button OR confirms existing connection
 server.registerWidget(
   "connect_strava",
   {
-    description: "Connect your Strava account to access your training data. This widget provides an authorization interface with a clickable button. Use this when you need to authorize or re-authorize access to your Strava activities.",
+    description: `Check Strava authentication status and provide connection interface if needed. This is a smart widget that handles both checking existing auth and initiating new connections.
+
+⚠️ IMPORTANT: Call this FIRST when the user makes any Strava data request. It will either:
+- Confirm the user is already connected (no action needed, proceed with data tools)
+- Display the authorization button if not connected
+
+WHEN TO USE:
+- At the start of ANY conversation involving Strava data
+- When you receive an authentication error
+- When unsure if the user is connected
+
+WORKFLOW:
+1. User asks for training data
+2. Call connect_strava to check/establish connection
+3. If already connected → proceed with data tools
+4. If not connected → widget shows auth button, wait for user to authorize
+
+This eliminates repeated auth prompts by checking status first.`,
   },
   {
-    description: "Display Strava authorization interface with connect button",
-    inputSchema: {},
+    description: "Check if user is connected to Strava. If connected, confirms status. If not connected, displays authorization interface with connect button.",
+    inputSchema: {
+      token: z
+        .string()
+        .optional()
+        .describe("Strava access token (optional - OAuth handles authentication automatically)"),
+    },
   },
-  async () => {
-    // Using localhost for OAuth callback to match Strava authorized domains
+  async ({ token }, extra) => {
+    // Try manual token first, then OAuth
+    let auth = token ? { userId: "manual", accessToken: token } : await getAuth(extra);
+    
+    // If we have auth, verify it's valid
+    if (auth) {
+      try {
+        const res = await fetch("https://www.strava.com/api/v3/athlete", {
+          headers: { Authorization: `Bearer ${auth.accessToken}` },
+        });
+
+        if (res.ok) {
+          const athlete = await res.json();
+          
+          // Already connected - return success status
+          return {
+            structuredContent: {
+              authenticated: true,
+              athlete: {
+                id: athlete.id,
+                name: `${athlete.firstname} ${athlete.lastname}`,
+                username: athlete.username,
+              },
+            },
+            content: [
+              {
+                type: "text",
+                text: `✅ Already connected to Strava as **${athlete.firstname} ${athlete.lastname}** (@${athlete.username})\n\nYou can proceed with any Strava data requests.`,
+              },
+            ],
+            isError: false,
+          };
+        }
+      } catch (error) {
+        console.warn("Auth check failed, will show connect UI:", error);
+        // Fall through to show connect UI
+      }
+    }
+    
+    // Not authenticated or auth invalid - show connect UI
     const serverUrl = "http://localhost:3000";
     const clientId = process.env.STRAVA_CLIENT_ID;
     
@@ -68,6 +128,7 @@ server.registerWidget(
     
     return {
       structuredContent: {
+        authenticated: false,
         authUrl,
         serverUrl,
       },
@@ -86,7 +147,15 @@ server.registerWidget(
 server.registerTool(
   "exchange_strava_code",
   {
-    description: "Exchange a Strava authorization code for an access token. Use this after the user authorizes via the connect_strava widget.",
+    description: `Exchange a Strava authorization code for an access token. Use this after the user authorizes via the connect_strava widget.
+
+⚠️ IMPORTANT: After receiving the access token, REMEMBER IT for the rest of this conversation. Store it in your context and use it for all subsequent Strava tool calls by passing it as the 'token' parameter. The token is valid for 6 hours.
+
+WORKFLOW:
+1. User authorizes via connect_strava
+2. Call this tool with the authorization code
+3. Receive and STORE the access token in your conversation memory
+4. Use the token for all future Strava data requests in this conversation`,
     inputSchema: {
       code: z.string().describe("The authorization code from Strava OAuth callback URL"),
     },
@@ -145,7 +214,7 @@ server.registerTool(
         content: [
           {
             type: "text",
-            text: `✅ Successfully connected to Strava!\n\n**Athlete:** ${tokens.athlete?.firstname} ${tokens.athlete?.lastname}\n**Token expires in:** ${Math.floor(tokens.expires_in / 3600)} hours\n\n🔑 **Your Access Token:**\n\`\`\`\n${tokens.access_token}\n\`\`\`\n\nYou can now use this token with other tools by providing it as the \`token\` parameter.`,
+            text: `✅ Successfully connected to Strava!\n\n**Athlete:** ${tokens.athlete?.firstname} ${tokens.athlete?.lastname}\n**Token expires in:** ${Math.floor(tokens.expires_in / 3600)} hours\n\n🔑 **Access Token (SAVE THIS):**\n\`\`\`\n${tokens.access_token}\n\`\`\`\n\n⚠️ IMPORTANT: Remember this token for the rest of our conversation. Use it with all Strava tools by passing token="${tokens.access_token}" as a parameter.`,
           },
         ],
       };
@@ -156,6 +225,98 @@ server.registerTool(
           {
             type: "text",
             text: `❌ Error exchanging code: ${error instanceof Error ? error.message : "Unknown error"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
+// Tool: Check Strava Authentication Status
+server.registerTool(
+  "check_strava_auth",
+  {
+    description: `Check if Strava authentication is working. Use this to verify the user is connected before calling other tools. This is a lightweight check that doesn't fetch any activity data.
+
+WHEN TO USE:
+- At the start of a conversation to check if user is already authenticated
+- After authentication to verify it worked
+- When unsure if token is still valid
+- Before calling data-fetching tools to avoid unnecessary auth prompts
+
+RETURNS:
+- If authenticated: athlete name and connection status
+- If not authenticated: clear instructions to connect
+
+This helps avoid repeatedly prompting for authentication when the user is already connected.`,
+    inputSchema: {
+      token: z
+        .string()
+        .optional()
+        .describe("Strava access token (optional - OAuth handles authentication automatically)"),
+    },
+  },
+  async ({ token }, extra) => {
+    // Try manual token first, then OAuth
+    let auth = token ? { userId: "manual", accessToken: token } : await getAuth(extra);
+    
+    if (!auth) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "❌ Not connected to Strava. Use the 'connect_strava' widget to authorize access to your training data.",
+          },
+        ],
+        isError: false, // Not an error, just not authenticated
+      };
+    }
+
+    try {
+      // Validate token by fetching athlete info
+      const res = await fetch("https://www.strava.com/api/v3/athlete", {
+        headers: { Authorization: `Bearer ${auth.accessToken}` },
+      });
+
+      if (!res.ok) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "❌ Strava connection is invalid or expired. Please reconnect using the 'connect_strava' widget.",
+            },
+          ],
+          isError: false,
+        };
+      }
+
+      const athlete = await res.json();
+
+      return {
+        structuredContent: {
+          authenticated: true,
+          athlete: {
+            id: athlete.id,
+            name: `${athlete.firstname} ${athlete.lastname}`,
+            username: athlete.username,
+          },
+        },
+        content: [
+          {
+            type: "text",
+            text: `✅ Connected to Strava as **${athlete.firstname} ${athlete.lastname}** (@${athlete.username})\n\nYou can now use any Strava data tools without re-authenticating.`,
+          },
+        ],
+        isError: false,
+      };
+    } catch (error) {
+      console.error("Error checking auth:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Error checking Strava connection: ${error instanceof Error ? error.message : "Unknown error"}`,
           },
         ],
         isError: true,

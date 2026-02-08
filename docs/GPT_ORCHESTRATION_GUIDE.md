@@ -238,11 +238,35 @@ User: "Compare my performance on hilly vs flat runs"
 
 ### Authentication Errors
 
-All tools/widgets require authorization. If auth fails:
+All tools/widgets require authorization. To avoid repeatedly prompting for authentication:
 
-1. Detect 401 or missing token
-2. Guide user through `connect_strava` widget for OAuth authorization
-3. Retry with valid token
+**Best Practice: Use connect_strava at conversation start**
+```
+User: "Show me my training summary"
+
+1. connect_strava() - checks auth and shows connect UI if needed
+2. If authenticated → proceed with get_training_summary
+3. If not authenticated → user clicks auth button, then retry
+```
+
+**Alternative: Use check_strava_auth for lightweight checks**
+- Use `check_strava_auth` when you just need to verify auth status without showing UI
+- Use `connect_strava` when you want to check AND provide the auth button if needed
+
+**When to check auth:**
+- At the start of a conversation (first data request) → use `connect_strava`
+- After user completes OAuth flow (verify it worked) → use `check_strava_auth`
+- Mid-conversation when unsure if token is still valid → use `check_strava_auth`
+
+**Don't check auth:**
+- On every single tool call (wasteful)
+- After you just successfully fetched data (token is clearly working)
+
+If auth fails during a tool call:
+
+1. Detect 401 or missing token error
+2. Call `connect_strava` to show auth UI
+3. After auth, proceed with the original request
 
 ### Rate Limiting
 
