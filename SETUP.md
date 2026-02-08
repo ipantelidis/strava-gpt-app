@@ -101,6 +101,7 @@ To test with ChatGPT during development:
 The app requests these Strava permissions:
 - `read` - Basic profile access
 - `activity:read_all` - Access to all activity data
+- `activity:write` - Upload activities and routes
 
 ## API Rate Limits
 
@@ -123,7 +124,7 @@ The app is designed to minimize API calls by:
 ### No activities showing
 - Verify your Strava account has running activities
 - Check that activities are within the last 30 days
-- Confirm OAuth scopes include `activity:read_all`
+- Confirm OAuth scopes include `activity:read_all` and `activity:write`
 
 ### Rate limit errors
 - Wait 15 minutes for rate limit reset

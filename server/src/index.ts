@@ -60,7 +60,7 @@ app.get("/oauth/callback", async (req, res) => {
       refresh_token: tokens.refresh_token,
       expires_in: tokens.expires_in,
       token_type: "Bearer",
-      scope: tokens.scope || "read,activity:read_all",
+      scope: tokens.scope || "read,activity:read_all,activity:write",
     });
   } catch (error) {
     console.error("OAuth callback error:", error);
@@ -83,7 +83,7 @@ app.use(
       response_types_supported: ["code"],
       grant_types_supported: ["authorization_code", "refresh_token"],
       code_challenge_methods_supported: ["S256"],
-      scopes_supported: ["read", "activity:read_all"],
+      scopes_supported: ["read", "activity:read_all", "activity:write"],
       // Redirect URI for OAuth callback
       redirect_uris: [`${serverUrl}/oauth/callback`],
     },

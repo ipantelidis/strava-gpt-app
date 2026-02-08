@@ -77,6 +77,7 @@
 - **Required scopes**: 
   - `read` – Basic profile access
   - `activity:read_all` – Access to all activity data
+  - `activity:write` – Upload activities and routes
 - **Rate limits**: 
   - 100 requests per 15 minutes
   - 1000 requests per day
