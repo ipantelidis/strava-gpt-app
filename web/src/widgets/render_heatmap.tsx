@@ -7,6 +7,7 @@ import {
   applyGlassmorphism,
   createGradientOverlay,
 } from "../design-system";
+import { ErrorBoundary } from "../ErrorBoundary";
 
 const { useToolInfo } = generateHelpers<AppType>();
 
@@ -30,7 +31,7 @@ interface HeatmapConfig {
   showDayLabels?: boolean;
 }
 
-export default function RenderHeatmap() {
+function RenderHeatmapContent() {
   const toolInfo = useToolInfo<"render_heatmap">();
 
   if (toolInfo.isPending) {
@@ -504,6 +505,14 @@ export default function RenderHeatmap() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function RenderHeatmap() {
+  return (
+    <ErrorBoundary widgetName="render_heatmap">
+      <RenderHeatmapContent />
+    </ErrorBoundary>
   );
 }
 
