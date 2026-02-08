@@ -1,6 +1,3 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import cors from "cors";
 import express, { type Express } from "express";
 import { mcpAuthMetadataRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
 import { widgetsDevServer } from "skybridge/server";
@@ -280,18 +277,8 @@ if (env !== "production") {
   app.use(await widgetsDevServer());
 }
 
-if (env === "production") {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-  const assetsPath = path.join(__dirname, "assets");
-  
-  console.log("Production mode - serving assets from:", assetsPath);
-
-  // Serve widget assets with CORS enabled
-  // Skybridge prepends /assets/ to manifest paths, so we serve from dist/assets/
-  app.use("/assets", cors());
-  app.use("/assets", express.static(assetsPath));
-}
+// In production, Skybridge automatically serves assets from dist/assets
+// No manual static file serving needed
 
 app.listen(3000, (error) => {
   if (error) {
