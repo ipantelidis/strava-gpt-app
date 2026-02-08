@@ -151,7 +151,7 @@ export function authErrorResponse(errorType: AuthError["type"]) {
   // - Clear error message
   // - Authorization URL
   // - Step-by-step instructions
-  // - Guidance on using exchange_strava_code tool
+  // - Guidance on using connect_strava widget
 }
 ```
 
@@ -357,8 +357,8 @@ Tests cover:
 
 3. **Auth Issues:**
    - Follow re-authorization instructions
-   - Get fresh authorization code
-   - Use exchange_strava_code tool
+   - Get fresh authorization through connect_strava widget
+   - OAuth flow handles token refresh automatically
 
 ## Future Improvements
 

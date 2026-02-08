@@ -2,7 +2,7 @@
 
 ## Prerequisites
 Before testing, ensure you have:
-1. A valid Strava access token (use `exchange_strava_code` if needed)
+1. A valid Strava connection (use `connect_strava` widget for OAuth authorization)
 2. The server running (`npm run dev`)
 3. Access to ChatGPT with the Strava Running Coach app connected
 

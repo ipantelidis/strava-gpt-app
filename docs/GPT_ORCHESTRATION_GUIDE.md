@@ -18,7 +18,7 @@ The Strava Running Coach app uses a **three-layer architecture**:
 
 - "How's my training?" → `get_training_summary`
 - "Am I improving?" → `compare_training_weeks`
-- "What should I do next?" → `get_coaching_advice`
+- "What's my training load?" → `compute_training_load`
 - "How am I improving on [route]?" → `analyze_run_progression`
 
 **Custom/flexible queries** → Use **Data Tools + Visualization Widgets** (composable)
@@ -108,9 +108,9 @@ These widgets combine data fetching + visualization for optimal performance:
 - **Use for**: "Am I improving?", "Compare this week to last week"
 - **Returns**: Week-over-week comparison with deltas and trends
 
-#### get_coaching_advice
-- **Replaces**: `compute_training_load` + reasoning + recommendations
-- **Use for**: "What should I do next?", "Am I overdoing it?"
+#### compute_training_load
+- **Replaces**: Manual training load calculation
+- **Use for**: "What's my training load?", "Calculate my acute:chronic ratio"
 - **Returns**: Training state, load metrics, actionable advice
 
 #### analyze_run_progression
@@ -140,7 +140,7 @@ These widgets combine data fetching + visualization for optimal performance:
 
 | User Query | Tool/Widget | Reasoning |
 |------------|-------------|-----------|
-| "What should I do next?" | `get_coaching_advice` | Common query, integrated widget |
+| "What's my training load?" | `compute_training_load` | Need training load metrics |
 | "What's my training load?" | `compute_training_load` | Need raw numbers for reasoning |
 | "How does elevation affect my pace?" | `analyze_elevation_impact` → `render_scatter_plot` | Custom analysis, compose tools |
 
@@ -174,7 +174,7 @@ These widgets combine data fetching + visualization for optimal performance:
 
 ✅ **Good**: User asks "What's my acute:chronic ratio?" → `compute_training_load` (returns raw numbers)
 
-❌ **Bad**: User asks "What's my acute:chronic ratio?" → `get_coaching_advice` (returns advice, not numbers)
+❌ **Bad**: User asks "Show me my training summary" → `compute_training_load` (use get_training_summary instead)
 
 **Why**: Data tools return structured data that GPT can reason about and manipulate.
 
@@ -241,7 +241,7 @@ User: "Compare my performance on hilly vs flat runs"
 All tools/widgets require authorization. If auth fails:
 
 1. Detect 401 or missing token
-2. Guide user through `exchange_strava_code` tool
+2. Guide user through `connect_strava` widget for OAuth authorization
 3. Retry with valid token
 
 ### Rate Limiting
