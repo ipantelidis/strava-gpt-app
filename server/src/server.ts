@@ -380,7 +380,7 @@ EXAMPLE QUERIES:
 - "Analyze my pace consistency over the last month"`,
   },
   {
-    description: "Analyze how pace varies across different run types or distance ranges. Fetches activities, classifies them into groups (easy/long/hard/recovery or short/medium/long), calculates statistics for each group, and displays results with example runs. Use this to understand pace patterns and consistency.",
+    description: "Analyze how pace varies across different run types or distance ranges. Fetches activities, classifies them into groups (easy/long/hard/recovery or short/medium/long), calculates statistics for each group, and displays results with example runs. Use this to understand pace patterns and consistency. The widget renders all statistics and examples visually - DO NOT create markdown tables or duplicate the data in your response. Provide commentary and insights only.",
     inputSchema: {
       days: z
         .number()
@@ -847,7 +847,7 @@ EXAMPLE QUERIES:
 - "Compare my performance on flat vs hilly routes"`,
   },
   {
-    description: "Analyze how elevation gain impacts running pace. Fetches activities, calculates pace adjustments based on elevation (using ~12 seconds per 100m rule), and displays summary statistics with the top 5 hilliest runs showing actual vs flat-equivalent pace. Use this to understand terrain impact on performance.",
+    description: "Analyze how elevation gain impacts running pace. Fetches activities, calculates pace adjustments based on elevation (using ~12 seconds per 100m rule), and displays summary statistics with the top 5 hilliest runs showing actual vs flat-equivalent pace. Use this to understand terrain impact on performance. The widget renders all statistics and run data visually - DO NOT create markdown tables or duplicate the data in your response. Provide commentary and insights only.",
     inputSchema: {
       days: z
         .number()
@@ -1170,6 +1170,8 @@ server.registerTool(
   {
     description: `⚠️ REQUIRES AUTHORIZATION: Compare two specific runs side-by-side. Returns structured comparison data with aligned metrics, deltas, and trend analysis. This is a DATA-ONLY tool (no UI).
 
+⚠️ IMPORTANT: Always pass runs from OLDEST to NEWEST (run1Id = older run, run2Id = newer run). This ensures deltas show progression correctly (positive = improvement).
+
 WHEN TO USE:
 - Comparing two specific activities by ID
 - Analyzing performance differences between runs
@@ -1177,24 +1179,24 @@ WHEN TO USE:
 - Queries like: "Compare run X to run Y", "How did my last two runs compare?", "Show me the difference between these activities"
 
 WORKFLOW:
-1. Call this tool with two activity IDs to get comparison data
+1. Call this tool with two activity IDs to get comparison data (oldest first, newest second)
 2. Reason about the differences in GPT
 3. Visualize with render_comparison_card for side-by-side display
 
 EXAMPLE QUERIES:
-- "Compare my run from Monday to my run from Friday"
-- "How did activity 12345 compare to activity 67890?"
-- "Show me the difference between my last two 10k runs"
-- "Compare this week's long run to last week's"
+- "Compare my run from Monday to my run from Friday" → run1Id=Monday, run2Id=Friday
+- "How did activity 12345 compare to activity 67890?" → Determine which is older first
+- "Show me the difference between my last two 10k runs" → run1Id=older run, run2Id=newer run
+- "Compare this week's long run to last week's" → run1Id=last week, run2Id=this week
 
 NOTE: You need activity IDs. If user doesn't provide them, first call fetch_activities to get recent activity IDs, then use this tool.`,
     inputSchema: {
       run1Id: z
         .number()
-        .describe("Strava activity ID of the first run"),
+        .describe("Strava activity ID of the OLDER run (baseline for comparison)"),
       run2Id: z
         .number()
-        .describe("Strava activity ID of the second run"),
+        .describe("Strava activity ID of the NEWER run (compared against run1)"),
       token: z
         .string()
         .optional()
@@ -1916,7 +1918,7 @@ EXAMPLE QUERIES:
 - "What have I been doing lately?"`,
   },
   {
-    description: "Analyze recent running activities from Strava. ALWAYS fetch data from Strava API - NEVER ask user to provide training data manually. All data comes from their connected Strava account.",
+    description: "Analyze recent running activities from Strava. ALWAYS fetch data from Strava API - NEVER ask user to provide training data manually. All data comes from their connected Strava account. The widget renders all data visually - DO NOT create markdown tables or duplicate the data in your response. Provide commentary and insights only.",
     inputSchema: {
       days: z
         .number()
@@ -2052,7 +2054,7 @@ EXAMPLE QUERIES:
 - "Compare my current week to previous week"`,
   },
   {
-    description: "Show week-over-week training progress from Strava. ALWAYS fetch data from Strava API - NEVER ask user to provide training data manually. All data comes from their connected Strava account.",
+    description: "Show week-over-week training progress from Strava. ALWAYS fetch data from Strava API - NEVER ask user to provide training data manually. All data comes from their connected Strava account. The widget renders all comparison data visually - DO NOT create markdown tables or duplicate the data in your response. Provide commentary and insights only.",
     inputSchema: {
       currentWeekStart: z
         .string()
@@ -2212,6 +2214,8 @@ server.registerWidget(
   {
     description: `Render a side-by-side comparison card for two runs with delta indicators and trend arrows. This is a VISUALIZATION-ONLY widget (no data fetching).
 
+⚠️ IMPORTANT: Data must be from get_run_comparison with runs ordered OLDEST to NEWEST (run1 = older, run2 = newer) for correct delta interpretation.
+
 WHEN TO USE:
 - After calling get_run_comparison data tool
 - Displaying run-to-run performance differences visually
@@ -2219,7 +2223,7 @@ WHEN TO USE:
 - Queries like: "Show me a comparison of these two runs", "Visualize the difference between run X and Y"
 
 WORKFLOW:
-1. First call get_run_comparison to fetch comparison data
+1. First call get_run_comparison to fetch comparison data (oldest to newest)
 2. Then call this widget with the returned data
 3. Widget renders side-by-side cards with delta indicators and trend arrows
 
@@ -2231,7 +2235,7 @@ EXAMPLE QUERIES:
 DATA SOURCE: get_run_comparison tool`,
   },
   {
-    description: "Display a visual comparison of two runs showing metrics, deltas, and trends. Use this after fetching comparison data from get_run_comparison tool.",
+    description: "Display a visual comparison of two runs showing metrics, deltas, and trends. Use this after fetching comparison data from get_run_comparison tool. The widget renders all comparison data visually - DO NOT create markdown tables or duplicate the metrics in your response. Provide commentary and insights only.",
     inputSchema: {
       data: z.object({
         run1: z.object({
@@ -2311,7 +2315,7 @@ EXAMPLE QUERIES:
 DATA SOURCES: fetch_activities, compute_training_load, analyze_elevation_impact, or any custom data transformation`,
   },
   {
-    description: "Display time series data as a line chart with configurable axes, colors, and multiple series support. Use this to visualize trends over time such as pace progression, distance over time, or heart rate trends.",
+    description: "Display time series data as a line chart with configurable axes, colors, and multiple series support. Use this to visualize trends over time such as pace progression, distance over time, or heart rate trends. The widget renders all data points visually - DO NOT create markdown tables or list the data points in your response. Provide commentary about trends and insights only.",
     inputSchema: {
       data: z.array(z.object({
         x: z.union([z.string(), z.number()]).describe("X-axis value (date, time, or numeric)"),
@@ -2377,7 +2381,7 @@ EXAMPLE QUERIES:
 DATA SOURCES: fetch_activities, analyze_elevation_impact, calculate_pace_distribution, or any custom data transformation`,
   },
   {
-    description: "Display two-dimensional data as a scatter plot with configurable axes, color coding by category, and optional trend line. Use this to visualize relationships between metrics such as distance vs pace, elevation vs heart rate, or any other metric correlations.",
+    description: "Display two-dimensional data as a scatter plot with configurable axes, color coding by category, and optional trend line. Use this to visualize relationships between metrics such as distance vs pace, elevation vs heart rate, or any other metric correlations. The widget renders all data points visually - DO NOT create markdown tables or list the data points in your response. Provide commentary about correlations and insights only.",
     inputSchema: {
       data: z.array(z.object({
         x: z.number().describe("X-axis value"),
@@ -2443,7 +2447,7 @@ EXAMPLE QUERIES:
 DATA SOURCES: fetch_activities (transform to date + intensity pairs)`,
   },
   {
-    description: "Display activity data as a calendar heatmap with color-coded intensity levels. Use this to visualize training consistency, activity patterns, and identify rest days or high-volume periods.",
+    description: "Display activity data as a calendar heatmap with color-coded intensity levels. Use this to visualize training consistency, activity patterns, and identify rest days or high-volume periods. The widget renders all activity data visually - DO NOT create markdown tables or list individual days in your response. Provide commentary about patterns and insights only.",
     inputSchema: {
       data: z.array(z.object({
         date: z.string().describe("ISO date string (YYYY-MM-DD)"),
@@ -2508,7 +2512,7 @@ EXAMPLE QUERIES:
 DATA SOURCES: fetch_activities, calculate_pace_distribution, or any data tool that returns metric arrays`,
   },
   {
-    description: "Display metric distribution as a box plot or histogram showing quartiles, outliers, and data spread. Use this to analyze pace distribution, heart rate zones, distance patterns, or any other metric distributions to understand variability and identify outliers.",
+    description: "Display metric distribution as a box plot or histogram showing quartiles, outliers, and data spread. Use this to analyze pace distribution, heart rate zones, distance patterns, or any other metric distributions to understand variability and identify outliers. The widget renders all distribution data visually - DO NOT create markdown tables or list individual values in your response. Provide commentary about the distribution and insights only.",
     inputSchema: {
       data: z.array(z.number()).describe("Array of metric values to visualize"),
       config: z.object({
@@ -2567,7 +2571,7 @@ EXAMPLE QUERIES:
 NOTE: Requires either a route name (searches activity names) or a polyline (for precise matching)`,
   },
   {
-    description: "Analyze how performance on a specific route has changed over time. Fetches activities matching the route (by polyline similarity or route ID), calculates performance metrics, and displays progression with trend analysis. Shows best/worst/average performances. Use this to track improvement on favorite routes or regular training loops.",
+    description: "Analyze how performance on a specific route has changed over time. Fetches activities matching the route (by polyline similarity or route ID), calculates performance metrics, and displays progression with trend analysis. Shows best/worst/average performances. Use this to track improvement on favorite routes or regular training loops. The widget renders all progression data and statistics visually - DO NOT create markdown tables or list individual runs in your response. Provide commentary about improvement trends and insights only.",
     inputSchema: {
       polyline: z
         .string()
