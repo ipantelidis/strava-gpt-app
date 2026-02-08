@@ -298,15 +298,28 @@ function RenderRouteMapContent() {
             border: "2px solid rgba(79, 172, 254, 0.3)",
           }}
         >
-          {/* Simple path visualization */}
+          {/* Map with route overlay */}
           <div
             style={{
               width: "100%",
               height: "400px",
               position: "relative" as const,
-              background: "linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%)",
             }}
           >
+            {/* OpenStreetMap tiles background */}
+            <iframe
+              src={`https://www.openstreetmap.org/export/embed.html?bbox=${minLng},${minLat},${maxLng},${maxLat}&layer=mapnik&marker=${(minLat + maxLat) / 2},${(minLng + maxLng) / 2}`}
+              style={{
+                width: "100%",
+                height: "100%",
+                border: "none",
+                position: "absolute" as const,
+                top: 0,
+                left: 0,
+              }}
+            />
+            
+            {/* Route overlay */}
             <svg
               width="100%"
               height="100%"
@@ -314,6 +327,10 @@ function RenderRouteMapContent() {
               preserveAspectRatio="xMidYMid meet"
               style={{
                 transform: "scaleY(-1)", // Flip Y axis for correct orientation
+                position: "absolute" as const,
+                top: 0,
+                left: 0,
+                pointerEvents: "none" as const,
               }}
             >
               {/* Route path */}
@@ -324,7 +341,7 @@ function RenderRouteMapContent() {
                 strokeWidth={lngDiff / 200}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                opacity="0.8"
+                opacity="0.9"
               />
               
               {/* Start point */}
