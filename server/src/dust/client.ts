@@ -1,9 +1,12 @@
 /**
- * Dust API client for agent orchestration
+ * Dust API client using official @dust-tt/client SDK
  */
+
+import { DustAPI } from "@dust-tt/client";
 
 export interface DustConfig {
   apiKey: string;
+  workspaceId: string;
   baseUrl?: string;
   timeout?: number;
 }
@@ -40,80 +43,134 @@ export class DustAPIError extends Error {
 }
 
 /**
- * Dust API client for interacting with Dust agents
+ * Dust API client wrapper using official SDK
  */
 export class DustClient {
-  private apiKey: string;
-  private baseUrl: string;
+  private dustAPI: DustAPI;
   private timeout: number;
 
   constructor(config: DustConfig) {
-    this.apiKey = config.apiKey;
-    this.baseUrl = config.baseUrl || "https://dust.tt/api/v1";
-    this.timeout = config.timeout || 30000; // 30 seconds default
+    this.timeout = config.timeout || 30000;
+
+    this.dustAPI = new DustAPI(
+      { url: config.baseUrl || "https://dust.tt" },
+      { workspaceId: config.workspaceId, apiKey: config.apiKey },
+      console
+    );
   }
 
   /**
    * Call a Dust agent with input data
    */
   async callAgent(request: DustAgentRequest): Promise<DustAgentResponse> {
-    const url = `${this.baseUrl}/agents/${request.agentId}/run`;
-
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.apiKey}`,
+      // Create conversation with agent
+      const conversationResult = await this.dustAPI.createConversation({
+        title: null,
+        visibility: "unlisted",
+        message: {
+          content: JSON.stringify(request.input),
+          mentions: [{ configurationId: request.agentId }],
+          context: {
+            timezone: "UTC",
+            username: "API User",
+            origin: "api",
+          },
         },
-        body: JSON.stringify({
-          input: request.input,
-          conversation_id: request.conversationId,
-        }),
-        signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
+      if (conversationResult.isErr()) {
+        const error = conversationResult.error;
+        
+        // Check for specific error types
+        if (error.message.includes("401") || error.message.includes("403")) {
+          throw new DustAPIError(
+            "Dust API authentication failed",
+            "DUST_AUTH_ERROR",
+            401
+          );
+        }
+        
+        if (error.message.includes("429")) {
+          throw new DustAPIError(
+            "Dust API rate limit exceeded",
+            "DUST_RATE_LIMIT",
+            429
+          );
+        }
 
-      // Handle authentication errors
-      if (response.status === 401 || response.status === 403) {
-        throw new DustAPIError(
-          "Dust API authentication failed",
-          "DUST_AUTH_ERROR",
-          response.status
-        );
+        return {
+          success: false,
+          error: {
+            code: "DUST_API_ERROR",
+            message: error.message,
+          },
+        };
       }
 
-      // Handle rate limiting
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After");
-        throw new DustAPIError(
-          "Dust API rate limit exceeded",
-          "DUST_RATE_LIMIT",
-          response.status,
-          retryAfter ? parseInt(retryAfter, 10) : undefined
-        );
+      const { conversation, message } = conversationResult.value;
+
+      // Ensure message exists
+      if (!message) {
+        return {
+          success: false,
+          error: {
+            code: "DUST_API_ERROR",
+            message: "No message returned from conversation creation",
+          },
+        };
       }
 
-      // Handle other errors
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new DustAPIError(
-          errorData.message || `Dust API error: ${response.status}`,
-          errorData.code || "DUST_API_ERROR",
-          response.status
-        );
+      // Stream agent response with timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Agent timeout")), this.timeout);
+      });
+
+      const streamPromise = (async () => {
+        const streamResult = await this.dustAPI.streamAgentAnswerEvents({
+          conversation,
+          userMessageId: message.sId,
+        });
+
+        if (streamResult.isErr()) {
+          throw new Error(streamResult.error.message);
+        }
+
+        const { eventStream } = streamResult.value;
+
+        // Collect agent response
+        let agentResponse = "";
+        for await (const event of eventStream) {
+          if (event.type === "agent_message_success") {
+            // Agent completed successfully
+            const content = event.message?.content;
+            if (content) {
+              agentResponse = content;
+            }
+          } else if (event.type === "agent_error") {
+            throw new Error(event.error?.message || "Agent error");
+          }
+        }
+
+        return agentResponse;
+      })();
+
+      const agentResponse = await Promise.race([streamPromise, timeoutPromise]) as string;
+
+      // Parse JSON response
+      try {
+        const data = JSON.parse(agentResponse);
+        return {
+          success: true,
+          data,
+        };
+      } catch (e) {
+        // If not JSON, return as text
+        return {
+          success: true,
+          data: { text: agentResponse },
+        };
       }
-
-      const data = await response.json();
-
-      return {
-        success: true,
-        data,
-      };
     } catch (error) {
       if (error instanceof DustAPIError) {
         return {
@@ -126,7 +183,7 @@ export class DustClient {
         };
       }
 
-      if (error instanceof Error && error.name === "AbortError") {
+      if (error instanceof Error && error.message === "Agent timeout") {
         return {
           success: false,
           error: {
@@ -147,16 +204,12 @@ export class DustClient {
   }
 
   /**
-   * Validate API key by making a test call
+   * Validate API key by checking agent configurations
    */
   async validateConnection(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/workspaces`, {
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-      });
-      return response.ok;
+      const r = await this.dustAPI.getAgentConfigurations({});
+      return r.isOk();
     } catch {
       return false;
     }
@@ -168,6 +221,7 @@ export class DustClient {
  */
 export function createDustClient(): DustClient {
   const apiKey = process.env.DUST_API_KEY;
+  const workspaceId = process.env.DUST_WORKSPACE_ID;
 
   if (!apiKey) {
     throw new Error(
@@ -175,8 +229,15 @@ export function createDustClient(): DustClient {
     );
   }
 
+  if (!workspaceId) {
+    throw new Error(
+      "DUST_WORKSPACE_ID environment variable is required for Dust integration"
+    );
+  }
+
   return new DustClient({
     apiKey,
+    workspaceId,
     baseUrl: process.env.DUST_API_URL,
     timeout: process.env.DUST_TIMEOUT
       ? parseInt(process.env.DUST_TIMEOUT, 10)
