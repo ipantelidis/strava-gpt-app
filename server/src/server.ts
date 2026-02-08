@@ -33,7 +33,7 @@ const server = new McpServer(
 server.registerWidget(
   "connect_strava",
   {
-    description: "Connect your Strava account to access your training data. This widget provides an authorization interface with a clickable button. Use this when you need to authorize or re-authorize access to your Strava activities. The OAuth flow is handled automatically.",
+    description: "Connect your Strava account to access your training data. This widget provides an authorization interface with a clickable button. Use this when you need to authorize or re-authorize access to your Strava activities.",
   },
   {
     description: "Display Strava authorization interface with connect button",
@@ -67,7 +67,7 @@ server.registerWidget(
       content: [
         {
           type: "text",
-          text: `🔐 Connect Your Strava Account\n\nTo analyze your training data, I need access to your Strava activities.\n\nClick here to authorize: ${authUrl}\n\nAfter authorizing on Strava, you'll be able to use all training analysis tools.`,
+          text: `🔐 Connect Your Strava Account\n\nTo analyze your training data, I need access to your Strava activities.\n\nClick here to authorize: ${authUrl}\n\nAfter authorizing on Strava, you'll receive an access token. Copy it and provide it when using the training tools.`,
         },
       ],
       isError: false,
@@ -75,7 +75,87 @@ server.registerWidget(
   },
 );
 
+// Tool: Exchange Strava Authorization Code for Access Token
+server.registerTool(
+  "exchange_strava_code",
+  {
+    description: "Exchange a Strava authorization code for an access token. Use this after the user authorizes via the connect_strava widget.",
+    inputSchema: {
+      code: z.string().describe("The authorization code from Strava OAuth callback URL"),
+    },
+  },
+  async ({ code }) => {
+    const clientId = process.env.STRAVA_CLIENT_ID;
+    const clientSecret = process.env.STRAVA_CLIENT_SECRET;
 
+    if (!clientId || !clientSecret) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "❌ Server configuration error: Strava credentials not configured.",
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    try {
+      const tokenResponse = await fetch("https://www.strava.com/oauth/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          code: code,
+          grant_type: "authorization_code",
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.text();
+        console.error("Token exchange failed:", tokenResponse.status, errorData);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `❌ Failed to exchange code for token. Status: ${tokenResponse.status}. The code may have expired or already been used. Please get a new authorization code.`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const tokens = await tokenResponse.json();
+
+      return {
+        structuredContent: {
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          expiresIn: tokens.expires_in,
+          athlete: tokens.athlete,
+        },
+        content: [
+          {
+            type: "text",
+            text: `✅ Successfully connected to Strava!\n\n**Athlete:** ${tokens.athlete?.firstname} ${tokens.athlete?.lastname}\n**Token expires in:** ${Math.floor(tokens.expires_in / 3600)} hours\n\n🔑 **Your Access Token:**\n\`\`\`\n${tokens.access_token}\n\`\`\`\n\nYou can now use this token with other tools by providing it as the \`token\` parameter.`,
+          },
+        ],
+      };
+    } catch (error) {
+      console.error("Token exchange error:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Error exchanging code: ${error instanceof Error ? error.message : "Unknown error"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
 
 // Data Tool: Fetch Activities
 server.registerTool(

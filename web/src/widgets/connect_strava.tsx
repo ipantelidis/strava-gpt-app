@@ -171,8 +171,10 @@ export default function ConnectStrava() {
             >
               <li>Click the "Connect Strava" button above</li>
               <li>You'll be redirected to Strava's authorization page</li>
-              <li>Click "Authorize" to grant access to your activities</li>
-              <li>After authorization, you'll be able to use all training analysis tools</li>
+              <li>Click "Authorize" to grant access</li>
+              <li><strong>Copy the authorization code from the URL</strong> (after <code>?code=</code>)</li>
+              <li>Return here and say: "My code is [paste the code]"</li>
+              <li>I'll exchange it for an access token</li>
             </ol>
             <p
               style={{
@@ -186,7 +188,7 @@ export default function ConnectStrava() {
                 border: "1px solid rgba(245, 158, 11, 0.3)",
               }}
             >
-              💡 <strong>Note:</strong> Your Strava connection is handled securely through OAuth. You only need to authorize once.
+              💡 <strong>Example:</strong> If the URL is <code>http://localhost:3000/oauth/callback?code=abc123xyz</code>, copy <code>abc123xyz</code>
             </p>
           </div>
         </div>
