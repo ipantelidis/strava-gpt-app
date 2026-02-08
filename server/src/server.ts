@@ -124,7 +124,8 @@ This eliminates repeated auth prompts by checking status first.`,
     }
     
     // Create authorization URL with callback to our server
-    const authUrl = `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(serverUrl + "/oauth/callback")}&approval_prompt=force&scope=read,activity:read_all`;
+    // Scopes: read (basic profile), activity:read_all (read activities), activity:write (upload activities)
+    const authUrl = `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(serverUrl + "/oauth/callback")}&approval_prompt=force&scope=read,activity:read_all,activity:write`;
     
     return {
       structuredContent: {

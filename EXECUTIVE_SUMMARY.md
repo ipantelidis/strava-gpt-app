@@ -146,7 +146,7 @@ All widgets use a shared design system for cohesive UX:
 ### External APIs
 
 #### Strava API v3
-- **Authentication:** OAuth2 with read + activity:read_all scopes
+- **Authentication:** OAuth2 with read + activity:read_all + activity:write scopes
 - **Rate limits:** 100 requests/15min, 1000 requests/day
 - **Mitigation:** Conversation-context caching, minimal data fetching
 - **Endpoints:** Activities, athlete profile, GPX upload
@@ -444,7 +444,7 @@ npm run deploy       # Deploy to Alpic
 ### OAuth Configuration
 - ✅ Strava app created
 - ✅ Callback domain registered
-- ✅ Scopes configured (read, activity:read_all)
+- ✅ Scopes configured (read, activity:read_all, activity:write)
 
 ---
 
