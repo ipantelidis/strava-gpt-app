@@ -12,6 +12,7 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@dust-tt/client": "^1.2.4",
     "@modelcontextprotocol/sdk": "^1.25.2",
     "@skybridge/devtools": ">=0.26.1 <1.0.0",
     "@types/cors": "^2.8.19",
