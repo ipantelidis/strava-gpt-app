@@ -19,7 +19,7 @@
 //   describe("Flow 1: Auth → Data Tool → Visualization", () => {
 //     it("should complete full flow from auth to data fetch to visualization", async () => {
 //       // This test validates the complete pipeline:
-//       // 1. User authorizes with Strava (connect_strava widget)
+//       // 1. User authorizes with Strava (exchange_strava_code)
 //       // 2. Fetch activities using token (fetch_activities)
 //       // 3. Transform data in GPT
 //       // 4. Visualize with render_line_chart

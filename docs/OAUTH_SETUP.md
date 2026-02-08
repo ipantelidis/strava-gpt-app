@@ -42,8 +42,9 @@ Based on your `.env` file:
 **Before (Manual Flow):**
 1. User clicks authorization link
 2. User authorizes on Strava
-3. OAuth flow completes automatically
-4. User can now use all training analysis tools
+3. User copies code from redirect URL
+4. User pastes code into `exchange_strava_code` tool
+5. App exchanges code for token
 
 **After (Automated Flow):**
 1. User clicks "Connect Strava" in ChatGPT
@@ -97,8 +98,7 @@ After updating the Strava API settings:
 ### 7. Migration Notes
 
 **Deprecated:**
-- ❌ `exchange_strava_code` tool (removed - OAuth handled automatically)
-- ❌ `get_coaching_advice` widget (removed - not needed)
+- ❌ `exchange_strava_code` tool (no longer needed)
 - ❌ Manual `token` parameter on tools (handled automatically)
 - ❌ Manual copy-paste of authorization codes
 

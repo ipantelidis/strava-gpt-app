@@ -17,6 +17,7 @@
 - ✅ Three widgets implemented:
   1. `get_training_summary` - Weekly overview with stats
   2. `compare_training_weeks` - Week-over-week comparison
+  3. `get_coaching_advice` - Training load analysis
 
 ### Documentation
 - ✅ SPEC.md - Complete product specification
@@ -28,6 +29,7 @@
 ### Frontend (React Widgets)
 - ⏳ Create `web/src/widgets/get_training_summary.tsx`
 - ⏳ Create `web/src/widgets/compare_training_weeks.tsx`
+- ⏳ Create `web/src/widgets/get_coaching_advice.tsx`
 
 ### Testing
 - ⏳ Test OAuth flow locally
@@ -57,7 +59,8 @@ server/src/
 ```
 web/src/widgets/
 ├── get_training_summary.tsx      # Weekly stats card
-└── compare_training_weeks.tsx    # Week comparison view
+├── compare_training_weeks.tsx    # Week comparison view
+└── get_coaching_advice.tsx       # Coaching recommendation card
 ```
 
 ## Key Features Implemented

@@ -28,12 +28,31 @@ const server = new McpServer(
   { capabilities: {} },
 );
 
+// Test widget to verify rendering
+server.registerWidget(
+  "test_widget",
+  {
+    description: "Test widget to verify rendering works",
+  },
+  {
+    description: "Simple test widget",
+    inputSchema: {},
+  },
+  async () => {
+    return {
+      structuredContent: { message: "Hello from server!" },
+      content: [{ type: "text", text: "Test widget" }],
+      isError: false,
+    };
+  },
+);
+
 // Widget: Connect Strava Account
 // Renders UI with authorization button
 server.registerWidget(
   "connect_strava",
   {
-    description: "Connect your Strava account to access your training data. This widget provides an authorization interface with a clickable button. Use this when you need to authorize or re-authorize access to your Strava activities. The OAuth flow is handled automatically.",
+    description: "Connect your Strava account to access your training data. This widget provides an authorization interface with a clickable button. Use this when you need to authorize or re-authorize access to your Strava activities.",
   },
   {
     description: "Display Strava authorization interface with connect button",
@@ -67,7 +86,7 @@ server.registerWidget(
       content: [
         {
           type: "text",
-          text: `🔐 Connect Your Strava Account\n\nTo analyze your training data, I need access to your Strava activities.\n\nClick here to authorize: ${authUrl}\n\nAfter authorizing on Strava, you'll be able to use all training analysis tools.`,
+          text: `🔐 Connect Your Strava Account\n\nTo analyze your training data, I need access to your Strava activities.\n\nClick here to authorize: ${authUrl}\n\nAfter authorizing on Strava, you'll receive an access token. Copy it and provide it when using the training tools.`,
         },
       ],
       isError: false,
@@ -75,7 +94,87 @@ server.registerWidget(
   },
 );
 
+// Tool: Exchange Strava Authorization Code for Access Token
+server.registerTool(
+  "exchange_strava_code",
+  {
+    description: "Exchange a Strava authorization code for an access token. Use this after the user authorizes via the connect_strava widget.",
+    inputSchema: {
+      code: z.string().describe("The authorization code from Strava OAuth callback URL"),
+    },
+  },
+  async ({ code }) => {
+    const clientId = process.env.STRAVA_CLIENT_ID;
+    const clientSecret = process.env.STRAVA_CLIENT_SECRET;
 
+    if (!clientId || !clientSecret) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "❌ Server configuration error: Strava credentials not configured.",
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    try {
+      const tokenResponse = await fetch("https://www.strava.com/oauth/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          code: code,
+          grant_type: "authorization_code",
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.text();
+        console.error("Token exchange failed:", tokenResponse.status, errorData);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `❌ Failed to exchange code for token. Status: ${tokenResponse.status}. The code may have expired or already been used. Please get a new authorization code.`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const tokens = await tokenResponse.json();
+
+      return {
+        structuredContent: {
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          expiresIn: tokens.expires_in,
+          athlete: tokens.athlete,
+        },
+        content: [
+          {
+            type: "text",
+            text: `✅ Successfully connected to Strava!\n\n**Athlete:** ${tokens.athlete?.firstname} ${tokens.athlete?.lastname}\n**Token expires in:** ${Math.floor(tokens.expires_in / 3600)} hours\n\n🔑 **Your Access Token:**\n\`\`\`\n${tokens.access_token}\n\`\`\`\n\nYou can now use this token with other tools by providing it as the \`token\` parameter.`,
+          },
+        ],
+      };
+    } catch (error) {
+      console.error("Token exchange error:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Error exchanging code: ${error instanceof Error ? error.message : "Unknown error"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
 
 // Data Tool: Fetch Activities
 server.registerTool(
@@ -92,7 +191,7 @@ WHEN TO USE:
 WHEN NOT TO USE:
 - For training summaries → use get_training_summary (faster, integrated)
 - For week comparisons → use compare_training_weeks (faster, integrated)
-- For training load analysis → use compute_training_load (data tool)
+- For coaching advice → use get_coaching_advice (faster, integrated)
 
 WORKFLOW:
 1. Call this tool to fetch activities
@@ -1974,7 +2073,171 @@ NOTE: Requires either a route name (searches activity names) or a polyline (for 
   },
 );
 
+// Widget 3: Coaching Advice
+server.registerWidget(
+  "get_coaching_advice",
+  {
+    description: `⚠️ REQUIRES AUTHORIZATION: Get personalized coaching advice. This is an INTEGRATED widget (combines data fetching + analysis).
 
+WHEN TO USE (PREFER THIS):
+- Training load assessment and recommendations
+- Queries like: "What should I do next?", "Am I overdoing it?", "Should I rest?", "Give me coaching advice"
+- This is FASTER than compute_training_load + manual reasoning
+
+WHEN NOT TO USE:
+- Need raw training load numbers → use compute_training_load
+- Want specific visualizations → use compute_training_load + render_line_chart
+
+WORKFLOW:
+- Single call returns training state, load metrics, and actionable recommendations
+- No additional analysis needed (integrated coaching logic)
+
+EXAMPLE QUERIES:
+- "What should I do next?"
+- "Am I training too hard?"
+- "Should I take a rest day?"
+- "Give me coaching advice based on my recent training"
+- "Am I at risk of injury?"`,
+  },
+  {
+    description: "Analyze training load and provide coaching recommendations from Strava. ALWAYS fetch data from Strava API - NEVER ask user to provide training data manually. All data comes from their connected Strava account.",
+    inputSchema: {
+      context: z
+        .string()
+        .optional()
+        .describe('Optional context like "recovery", "intensity", etc.'),
+      token: z
+        .string()
+        .optional()
+        .describe("Strava access token (optional - OAuth handles authentication automatically)"),
+    },
+  },
+  async ({ context: _context, token }, extra) => {
+    // Context parameter reserved for future use (e.g., specific advice types)
+    // Try manual token first, then OAuth
+    let auth = token ? { userId: "manual", accessToken: token } : await getAuth(extra);
+    
+    if (!auth) {
+      return authErrorResponse("missing_token");
+    }
+
+    try {
+      // Fetch recent activities
+      const sevenDaysAgo = Math.floor(Date.now() / 1000 - 7 * 24 * 60 * 60);
+      const activities = await fetchRecentActivities(auth.accessToken, sevenDaysAgo);
+
+      // Calculate training load
+      const now = new Date();
+      const threeDaysAgo = new Date(now);
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+      const last7DaysActivities = activities;
+      const last3DaysActivities = filterActivitiesByDateRange(
+        activities,
+        threeDaysAgo,
+        now,
+      );
+
+      const last7Days =
+        Math.round(
+          last7DaysActivities.reduce((sum, a) => sum + a.distance / 1000, 0) * 10,
+        ) / 10;
+      const last3Days =
+        Math.round(
+          last3DaysActivities.reduce((sum, a) => sum + a.distance / 1000, 0) * 10,
+        ) / 10;
+
+      // Calculate consecutive days
+      const sortedActivities = [...activities].sort(
+        (a, b) =>
+          new Date(b.start_date_local).getTime() -
+          new Date(a.start_date_local).getTime(),
+      );
+
+      let consecutiveDays = 0;
+      let lastDate: Date | null = null;
+
+      for (const activity of sortedActivities) {
+        const activityDate = new Date(activity.start_date_local);
+        activityDate.setHours(0, 0, 0, 0);
+
+        if (!lastDate) {
+          consecutiveDays = 1;
+          lastDate = activityDate;
+        } else {
+          const dayDiff = Math.floor(
+            (lastDate.getTime() - activityDate.getTime()) / (1000 * 60 * 60 * 24),
+          );
+
+          if (dayDiff === 1) {
+            consecutiveDays++;
+            lastDate = activityDate;
+          } else {
+            break;
+          }
+        }
+      }
+
+      // Determine training state
+      let trainingState: "fresh" | "building" | "fatigued" | "recovering" = "fresh";
+      if (consecutiveDays >= 4 || last3Days > 30) {
+        trainingState = "fatigued";
+      } else if (last7Days > 40) {
+        trainingState = "building";
+      } else if (last3Days < 10 && last7Days < 20) {
+        trainingState = "recovering";
+      }
+
+      return {
+        structuredContent: {
+          recentLoad: {
+            last7Days,
+            last3Days,
+            consecutiveDays,
+          },
+          recommendation: {
+            action: "", // LLM will generate
+            reasoning: "", // LLM will generate
+            nextRun: "", // LLM will generate
+          },
+          trainingState,
+        },
+        content: [
+          {
+            type: "text",
+            text: `Training load: ${last7Days}km in 7 days, ${last3Days}km in last 3 days. ${consecutiveDays} consecutive days. State: ${trainingState}`,
+          },
+        ],
+        isError: false,
+      };
+    } catch (error) {
+      // Handle 401 Unauthorized errors specifically
+      if (error instanceof UnauthorizedError) {
+        return authErrorResponse("unauthorized");
+      }
+      
+      // Handle 429 Rate Limit errors
+      if (error instanceof RateLimitError) {
+        return rateLimitErrorResponse(
+          error.retryAfter,
+          error.limit,
+          error.usage
+        );
+      }
+      
+      console.error("Error getting coaching advice:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error analyzing training: ${error instanceof Error ? error.message : "Unknown error"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
 
 export default server;
 export type AppType = typeof server;
