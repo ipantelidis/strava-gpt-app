@@ -1700,12 +1700,19 @@ server.registerTool(
   {
     description: `Generate custom running routes with LLM-controlled parameters. Creates 2-3 route variations based on distance, location, and preferences.
 
+⚠️ IMPORTANT: After calling this tool, ALWAYS visualize ALL generated routes using render_route_map for EACH route. The user needs to see the routes on a map to choose which one to export.
+
 WHEN TO USE:
 - User wants a custom route for a specific distance
 - User wants to include specific landmarks ("along the Seine")
 - User wants to avoid certain areas ("avoid busy streets")
 - User wants scenic or safe routes
 - Queries like: "Generate a 10k route", "Create a route through Central Park", "Find a scenic 15k"
+
+WORKFLOW:
+1. Call this tool to generate 2-3 route options
+2. For EACH route returned, call render_route_map to display it visually
+3. User can then choose which route to export to Strava
 
 LLM CONTROL:
 ChatGPT can extract semantic parameters from natural language:
