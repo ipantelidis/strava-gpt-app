@@ -283,13 +283,12 @@ if (env !== "production") {
 if (env === "production") {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
-  const assetsPath = path.join(__dirname, "assets", "assets");
+  const assetsPath = path.join(__dirname, "assets");
   
   console.log("Production mode - serving assets from:", assetsPath);
 
   // Serve widget assets with CORS enabled
-  // The build process creates assets in dist/assets/assets/
-  // We need to serve that nested directory at /assets/ to match the manifest paths
+  // Skybridge prepends /assets/ to manifest paths, so we serve from dist/assets/
   app.use("/assets", cors());
   app.use("/assets", express.static(assetsPath));
 }
