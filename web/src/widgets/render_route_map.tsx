@@ -304,22 +304,36 @@ function RenderRouteMapContent() {
               width: "100%",
               height: "400px",
               position: "relative" as const,
+              background: "#e5e7eb",
             }}
           >
-            {/* OpenStreetMap tiles background */}
-            <iframe
-              src={`https://www.openstreetmap.org/export/embed.html?bbox=${minLng},${minLat},${maxLng},${maxLat}&layer=mapnik&marker=${(minLat + maxLat) / 2},${(minLng + maxLng) / 2}`}
+            {/* SVG-based map visualization */}
+            <svg
+              width="100%"
+              height="100%"
+              viewBox={`${minLng} ${minLat} ${lngDiff} ${latDiff}`}
+              preserveAspectRatio="xMidYMid meet"
               style={{
-                width: "100%",
-                height: "100%",
-                border: "none",
-                position: "absolute" as const,
-                top: 0,
-                left: 0,
+                transform: "scaleY(-1)", // Flip Y axis for correct orientation
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                opacity: 0.1,
               }}
-            />
-            
-            {/* Route overlay */}
+            >
+              {/* Grid background */}
+              <defs>
+                <pattern id="grid" width={lngDiff / 20} height={latDiff / 20} patternUnits="userSpaceOnUse">
+                  <path
+                    d={`M ${lngDiff / 20} 0 L 0 0 0 ${latDiff / 20}`}
+                    fill="none"
+                    stroke="rgba(0,0,0,0.1)"
+                    strokeWidth={lngDiff / 1000}
+                  />
+                </pattern>
+              </defs>
+              <rect x={minLng} y={minLat} width={lngDiff} height={latDiff} fill="url(#grid)" />
+            </svg>
+
+            {/* Route overlay - now properly scaled */}
             <svg
               width="100%"
               height="100%"
@@ -333,7 +347,17 @@ function RenderRouteMapContent() {
                 pointerEvents: "none" as const,
               }}
             >
-              {/* Route path */}
+              {/* Route path with glow effect */}
+              <polyline
+                points={route.path.map(p => `${p.lng},${p.lat}`).join(" ")}
+                fill="none"
+                stroke="#4facfe"
+                strokeWidth={lngDiff / 100}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.3"
+                filter="blur(0.002)"
+              />
               <polyline
                 points={route.path.map(p => `${p.lng},${p.lat}`).join(" ")}
                 fill="none"
@@ -348,7 +372,14 @@ function RenderRouteMapContent() {
               <circle
                 cx={route.path[0].lng}
                 cy={route.path[0].lat}
-                r={lngDiff / 100}
+                r={lngDiff / 80}
+                fill="#10b981"
+                opacity="0.3"
+              />
+              <circle
+                cx={route.path[0].lng}
+                cy={route.path[0].lat}
+                r={lngDiff / 120}
                 fill="#10b981"
                 stroke="white"
                 strokeWidth={lngDiff / 400}
@@ -358,7 +389,14 @@ function RenderRouteMapContent() {
               <circle
                 cx={route.path[route.path.length - 1].lng}
                 cy={route.path[route.path.length - 1].lat}
-                r={lngDiff / 100}
+                r={lngDiff / 80}
+                fill="#ef4444"
+                opacity="0.3"
+              />
+              <circle
+                cx={route.path[route.path.length - 1].lng}
+                cy={route.path[route.path.length - 1].lat}
+                r={lngDiff / 120}
                 fill="#ef4444"
                 stroke="white"
                 strokeWidth={lngDiff / 400}
@@ -366,16 +404,24 @@ function RenderRouteMapContent() {
               
               {/* POIs */}
               {config?.showPOIs !== false && route.pointsOfInterest?.map((poi, idx) => (
-                <circle
-                  key={idx}
-                  cx={poi.lng}
-                  cy={poi.lat}
-                  r={lngDiff / 150}
-                  fill="#f59e0b"
-                  stroke="white"
-                  strokeWidth={lngDiff / 500}
-                  opacity="0.9"
-                />
+                <g key={idx}>
+                  <circle
+                    cx={poi.lng}
+                    cy={poi.lat}
+                    r={lngDiff / 100}
+                    fill="#f59e0b"
+                    opacity="0.3"
+                  />
+                  <circle
+                    cx={poi.lng}
+                    cy={poi.lat}
+                    r={lngDiff / 150}
+                    fill="#f59e0b"
+                    stroke="white"
+                    strokeWidth={lngDiff / 500}
+                    opacity="0.9"
+                  />
+                </g>
               ))}
             </svg>
             
@@ -408,6 +454,23 @@ function RenderRouteMapContent() {
                   <span>POI</span>
                 </div>
               )}
+            </div>
+
+            {/* Coordinates info */}
+            <div
+              style={{
+                position: "absolute" as const,
+                top: "16px",
+                right: "16px",
+                ...applyGlassmorphism(0.95),
+                padding: DesignSystem.spacing.element,
+                borderRadius: DesignSystem.borderRadius.small,
+                fontSize: "10px",
+                color: "rgba(0, 0, 0, 0.5)",
+                fontFamily: "monospace",
+              }}
+            >
+              {((minLat + maxLat) / 2).toFixed(4)}°, {((minLng + maxLng) / 2).toFixed(4)}°
             </div>
           </div>
         </div>
