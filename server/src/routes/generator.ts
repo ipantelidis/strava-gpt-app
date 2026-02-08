@@ -194,10 +194,11 @@ export async function generateRoutes(
   }
 
   // Strategy 3: Standard circular routes (fallback or additional options)
+  // Use tighter variations to stay closer to requested distance
   const variations = [
-    { radiusMultiplier: 0.9, name: "Compact Loop" },
+    { radiusMultiplier: 0.95, name: "Compact Loop" },
     { radiusMultiplier: 1.0, name: "Standard Loop" },
-    { radiusMultiplier: 1.1, name: "Extended Loop" },
+    { radiusMultiplier: 1.05, name: "Extended Loop" },
   ];
 
   for (let i = 0; i < Math.min(3 - routes.length, variations.length); i++) {
@@ -258,12 +259,25 @@ export async function generateRoutes(
     }
   }
 
+  // Filter routes to keep only those within acceptable distance tolerance
+  // Allow ±20% of requested distance (e.g., 10km request → 8-12km acceptable)
+  const minDistance = request.distance * 0.8;
+  const maxDistance = request.distance * 1.2;
+  
+  const filteredRoutes = routes.filter(
+    route => route.distance >= minDistance && route.distance <= maxDistance
+  );
+
+  // If we have filtered routes, use them; otherwise fall back to all routes
+  // (better to show something than nothing)
+  const finalRoutes = filteredRoutes.length >= 2 ? filteredRoutes : routes;
+
   // Return at least 2 routes
-  if (routes.length < 2) {
-    throw new Error("Failed to generate sufficient route options");
+  if (finalRoutes.length < 2) {
+    throw new Error("Failed to generate sufficient route options within distance tolerance");
   }
 
-  return routes.slice(0, 3);
+  return finalRoutes.slice(0, 3);
 }
 
 /**
