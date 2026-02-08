@@ -59,7 +59,8 @@ server.registerWidget(
     inputSchema: {},
   },
   async () => {
-    const serverUrl = process.env.MCP_SERVER_URL || "http://localhost:3000";
+    // Using localhost for OAuth callback to match Strava authorized domains
+    const serverUrl = "http://localhost:3000";
     const clientId = process.env.STRAVA_CLIENT_ID;
     
     if (!clientId) {
