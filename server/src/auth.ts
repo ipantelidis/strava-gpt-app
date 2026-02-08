@@ -121,7 +121,8 @@ export function createAuthError(type: AuthError["type"]): AuthError {
  * Directs users to the connect_strava tool
  */
 export function authErrorResponse(errorType: AuthError["type"] = "missing_token") {
-  const serverUrl = process.env.MCP_SERVER_URL || "http://localhost:3000";
+  // Force localhost for OAuth callback (production users won't be able to use this)
+  const serverUrl = "http://localhost:3000";
   const authError = createAuthError(errorType);
   
   return {

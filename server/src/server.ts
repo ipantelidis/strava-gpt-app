@@ -59,7 +59,8 @@ server.registerWidget(
     inputSchema: {},
   },
   async () => {
-    const serverUrl = process.env.MCP_SERVER_URL || "http://localhost:3000";
+    // Force localhost for OAuth callback (production users won't be able to use this)
+    const serverUrl = "http://localhost:3000";
     const clientId = process.env.STRAVA_CLIENT_ID;
     
     if (!clientId) {
