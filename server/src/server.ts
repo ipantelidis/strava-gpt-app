@@ -19,6 +19,13 @@ import {
   type CacheKey,
 } from "./cache.js";
 import { rateLimitErrorResponse } from "./errors.js";
+import {
+  createDustClient,
+  callWeatherAgent,
+  dustErrorResponse,
+  type WeatherAgentInput,
+} from "./dust/index.js";
+import { generateRoutes, type RouteRequest } from "./routes/index.js";
 
 const server = new McpServer(
   {
@@ -1110,6 +1117,320 @@ INTERPRETATION:
           {
             type: "text",
             text: `Error computing training load: ${error instanceof Error ? error.message : "Unknown error"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
+// Tool: Get Weather Recommendation
+server.registerTool(
+  "get_weather_recommendation",
+  {
+    description: `Get weather-aware coaching recommendations using AI. Fetches current weather conditions and provides intelligent running advice based on temperature, precipitation, wind, humidity, and air quality.
+
+WHEN TO USE:
+- Planning today's run based on weather
+- Getting gear and timing recommendations
+- Understanding if conditions are safe for running
+- Queries like: "Should I run today?", "What's the weather like for running?", "Is it safe to run now?"
+
+WORKFLOW:
+1. Call this tool with location (or use Strava token to infer location)
+2. AI agent analyzes weather conditions
+3. Returns structured weather data + coaching recommendations
+
+EXAMPLE QUERIES:
+- "Should I run today in Paris?"
+- "What's the weather like for running?"
+- "Is it safe to run now?"
+- "What gear should I wear for today's run?"
+
+OUTPUT:
+- Current weather conditions (temperature, precipitation, wind, humidity, air quality)
+- Suitability rating (excellent/good/moderate/caution/not_recommended)
+- Recommendations (best time, gear, hydration, pace adjustment)
+- Warnings for unsafe conditions`,
+    inputSchema: {
+      location: z
+        .string()
+        .optional()
+        .describe("Location for weather check (city name or coordinates). If not provided, will try to infer from recent Strava activities."),
+      query: z
+        .string()
+        .optional()
+        .describe("Natural language query about running conditions (e.g., 'Should I run today?', 'What should I wear?')"),
+      timeframe: z
+        .enum(["now", "today", "week"])
+        .optional()
+        .default("now")
+        .describe("Timeframe for weather check: 'now' for current conditions, 'today' for today's forecast, 'week' for weekly forecast"),
+      token: z
+        .string()
+        .optional()
+        .describe("Strava access token (optional - used to infer location from recent activities if location not provided)"),
+    },
+  },
+  async ({ location, query, timeframe }) => {
+    try {
+      // If no location provided, use a default
+      const weatherLocation = location || "Paris, France";
+
+      // Create Dust client
+      const dustClient = createDustClient();
+
+      // Prepare input for weather agent
+      const weatherInput: WeatherAgentInput = {
+        location: weatherLocation,
+        query: query || `What are the running conditions ${timeframe === "now" ? "right now" : timeframe === "today" ? "today" : "this week"}?`,
+        timeframe,
+      };
+
+      // Call weather agent
+      const weatherData = await callWeatherAgent(dustClient, weatherInput);
+
+      // Format response
+      const suitabilityEmoji = weatherData.suitability.emoji;
+      const suitabilityText = weatherData.suitability.rating.toUpperCase();
+      
+      let responseText = `${suitabilityEmoji} **Weather for Running in ${weatherData.location}**\n\n`;
+      responseText += `**Conditions:** ${weatherData.current.conditions}\n`;
+      responseText += `**Temperature:** ${weatherData.current.temperature_c}°C (feels like ${weatherData.current.feels_like_c}°C)\n`;
+      responseText += `**Wind:** ${weatherData.current.wind_speed_kmh} km/h\n`;
+      responseText += `**Humidity:** ${weatherData.current.humidity_percent}%\n`;
+      
+      if (weatherData.current.precipitation_mm > 0) {
+        responseText += `**Precipitation:** ${weatherData.current.precipitation_mm}mm\n`;
+      }
+      
+      if (weatherData.current.air_quality_index) {
+        responseText += `**Air Quality:** ${weatherData.current.air_quality_index} (${weatherData.current.air_quality_index < 50 ? "Good" : weatherData.current.air_quality_index < 100 ? "Moderate" : "Poor"})\n`;
+      }
+      
+      responseText += `\n**Suitability:** ${suitabilityText} (${weatherData.suitability.score}/100)\n\n`;
+      responseText += `**Recommendations:**\n`;
+      responseText += `- **Best Time:** ${weatherData.recommendations.best_time}\n`;
+      responseText += `- **Gear:** ${weatherData.recommendations.gear.join(", ")}\n`;
+      responseText += `- **Hydration:** ${weatherData.recommendations.hydration}\n`;
+      
+      if (weatherData.recommendations.pace_adjustment !== 0) {
+        const adjustment = weatherData.recommendations.pace_adjustment > 0 ? "slower" : "faster";
+        responseText += `- **Pace Adjustment:** ${Math.abs(weatherData.recommendations.pace_adjustment)}% ${adjustment}\n`;
+      }
+      
+      if (weatherData.warnings.length > 0) {
+        responseText += `\n⚠️ **Warnings:**\n`;
+        weatherData.warnings.forEach(warning => {
+          responseText += `- ${warning}\n`;
+        });
+      }
+      
+      responseText += `\n**Analysis:** ${weatherData.reasoning}`;
+
+      return {
+        structuredContent: {
+          weather: weatherData,
+          metadata: {
+            fetchedAt: new Date().toISOString(),
+            source: "dust-weather-agent",
+            location: weatherData.location,
+            timeframe,
+          },
+        },
+        content: [
+          {
+            type: "text",
+            text: responseText,
+          },
+        ],
+        isError: false,
+      };
+    } catch (error) {
+      console.error("Error getting weather recommendation:", error);
+      return dustErrorResponse(error);
+    }
+  },
+);
+
+// Tool: Generate Running Route
+server.registerTool(
+  "generate_running_route",
+  {
+    description: `Generate custom running routes with LLM-controlled parameters. Creates 2-3 route variations based on distance, location, and preferences.
+
+WHEN TO USE:
+- User wants a custom route for a specific distance
+- User wants to include specific landmarks ("along the Seine")
+- User wants to avoid certain areas ("avoid busy streets")
+- User wants scenic or safe routes
+- Queries like: "Generate a 10k route", "Create a route through Central Park", "Find a scenic 15k"
+
+LLM CONTROL:
+ChatGPT can extract semantic parameters from natural language:
+- "10k along the Seine" → mustInclude: ["Seine River"]
+- "avoiding busy streets" → trafficLevel: "low"
+- "make it more scenic" → scenicPriority: 90
+- "with some hills" → elevationPreference: "moderate"
+
+OUTPUT:
+- 2-3 route variations with different characteristics
+- Each route includes: distance, elevation, difficulty, highlights
+- GPS path, polyline (for Strava), turn-by-turn directions
+- Points of interest, safety score, scenic score`,
+    inputSchema: {
+      distance: z
+        .number()
+        .min(1)
+        .max(50)
+        .describe("Distance in kilometers (1-50km)"),
+      location: z
+        .string()
+        .describe("Starting location (city, neighborhood, or landmark)"),
+      terrain: z
+        .enum(["flat", "hilly", "mixed"])
+        .optional()
+        .describe("Preferred terrain type"),
+      preferences: z
+        .enum(["park", "waterfront", "urban", "trail"])
+        .optional()
+        .describe("Route environment preference"),
+      intensity: z
+        .enum(["easy", "moderate", "challenging"])
+        .optional()
+        .describe("Desired intensity level"),
+      mustInclude: z
+        .array(z.string())
+        .optional()
+        .describe("Landmark names that must be included in the route (e.g., ['Eiffel Tower', 'Seine River'])"),
+      avoidAreas: z
+        .array(z.string())
+        .optional()
+        .describe("Area names to avoid (e.g., ['Champs-Élysées', 'busy downtown'])"),
+      scenicPriority: z
+        .number()
+        .min(0)
+        .max(100)
+        .optional()
+        .describe("Scenic optimization priority (0-100, higher = more scenic)"),
+      safetyPriority: z
+        .number()
+        .min(0)
+        .max(100)
+        .optional()
+        .describe("Safety optimization priority (0-100, higher = safer)"),
+      trafficLevel: z
+        .enum(["low", "medium", "high"])
+        .optional()
+        .describe("Preferred traffic level (low = pedestrian paths, parks)"),
+      elevationPreference: z
+        .enum(["minimize", "maximize", "moderate"])
+        .optional()
+        .describe("Hill preference (minimize = flat, maximize = hilly)"),
+    },
+  },
+  async ({
+    distance,
+    location,
+    terrain,
+    preferences,
+    intensity,
+    mustInclude,
+    avoidAreas,
+    scenicPriority,
+    safetyPriority,
+    trafficLevel,
+    elevationPreference,
+  }) => {
+    try {
+      const mapboxToken = process.env.MAPBOX_API_KEY;
+
+      if (!mapboxToken) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "❌ Mapbox API key not configured. Please set MAPBOX_API_KEY in your environment variables.",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      // Build route request
+      const request: RouteRequest = {
+        distance,
+        location,
+        terrain,
+        preferences,
+        intensity,
+        mustInclude,
+        avoidAreas,
+        scenicPriority,
+        safetyPriority,
+        trafficLevel,
+        elevationPreference,
+      };
+
+      // Generate routes
+      const routes = await generateRoutes(request, mapboxToken);
+
+      // Format response
+      let responseText = `🗺️ **Generated ${routes.length} Route Options for ${location}**\n\n`;
+
+      routes.forEach((route, index) => {
+        responseText += `**Option ${index + 1}: ${route.name}**\n`;
+        responseText += `- Distance: ${route.distance}km\n`;
+        responseText += `- Elevation Gain: ${route.elevationGain}m\n`;
+        responseText += `- Difficulty: ${route.difficulty}\n`;
+        responseText += `- Safety Score: ${route.safetyScore}/100\n`;
+        responseText += `- Scenic Score: ${route.scenicScore}/100\n`;
+        responseText += `- Traffic Level: ${route.trafficLevel}\n`;
+
+        if (route.highlights.length > 0) {
+          responseText += `- Highlights:\n`;
+          route.highlights.forEach((highlight) => {
+            responseText += `  • ${highlight}\n`;
+          });
+        }
+
+        if (route.pointsOfInterest.length > 0) {
+          responseText += `- Points of Interest:\n`;
+          route.pointsOfInterest.forEach((poi) => {
+            responseText += `  • ${poi.name}\n`;
+          });
+        }
+
+        responseText += `\n`;
+      });
+
+      responseText += `\n💡 **Tip:** Use \`export_route_to_strava\` to save a route to your Strava account.`;
+
+      return {
+        structuredContent: {
+          routes,
+          metadata: {
+            generatedAt: new Date().toISOString(),
+            source: "mapbox",
+            request,
+          },
+        },
+        content: [
+          {
+            type: "text",
+            text: responseText,
+          },
+        ],
+        isError: false,
+      };
+    } catch (error) {
+      console.error("Error generating routes:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Error generating routes: ${error instanceof Error ? error.message : "Unknown error"}. Please try a different location or parameters.`,
           },
         ],
         isError: true,
