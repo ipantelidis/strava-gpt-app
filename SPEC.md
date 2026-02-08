@@ -295,9 +295,9 @@ See [GPT Orchestration Guide](docs/GPT_ORCHESTRATION_GUIDE.md) for detailed orch
 - **Views**: Side-by-side comparison with trend indicators (↑↓)
 - **Behavior**: Fetches last 2 weeks of activities, calculates deltas and trends
 
-### Widget: `get_coaching_advice`
-- **Purpose**: Get personalized coaching advice (INTEGRATED: data + analysis)
-- **Input**: `{ context?: string, token?: string }` (optional: "recovery", "intensity", etc.)
+### Widget: `compute_training_load` (Data Tool)
+- **Purpose**: Calculate training load metrics (acute, chronic, ratio)
+- **Input**: `{ days?: number, token?: string }` (default: 28 days)
 - **Output**:
   ```typescript
   {
@@ -358,11 +358,11 @@ See [GPT Orchestration Guide](docs/GPT_ORCHESTRATION_GUIDE.md) for detailed orch
 - **Views**: Progression chart with best/worst/average performances
 - **Behavior**: Fetches activities, matches route (by name or polyline), calculates progression
 
-### Tool: `exchange_strava_code`
-- **Purpose**: Exchange Strava authorization code for access token
-- **Input**: `{ code: string }`
-- **Output**: `{ access_token: string, refresh_token: string, expires_at: number, athlete: {...} }`
-- **Use for**: Initial authorization, token refresh
+### Widget: `connect_strava`
+- **Purpose**: Display Strava authorization interface with OAuth flow
+- **Input**: None (widget handles authorization automatically)
+- **Output**: Authorization URL and instructions
+- **Use for**: Initial authorization and re-authorization
 - **Behavior**: Exchanges authorization code for access token via Strava OAuth2 flow
 
 ---
@@ -478,7 +478,6 @@ The app implements a complete three-layer architecture:
 **Layer 3: Integrated Widgets (4 widgets)**
 - `get_training_summary` - Weekly stats with runs list and insights
 - `compare_training_weeks` - Week-over-week comparison with trends
-- `get_coaching_advice` - Training load analysis with recommendations
 - `analyze_run_progression` - Route-specific performance tracking
 
 #### ✅ Design System

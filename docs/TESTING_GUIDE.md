@@ -315,7 +315,7 @@ const mockAuthResponse = {
 - **Widget Tests**: All widgets have basic render tests
 
 ### Critical Paths to Test:
-1. Authentication flow (exchange_strava_code)
+1. Authentication flow (connect_strava widget)
 2. Data fetching (fetch_activities with and without details)
 3. Data tools (all 5 data tools)
 4. Visualization widgets (all 5 visualization widgets)
