@@ -12,7 +12,7 @@
   "env": {
     "STRAVA_CLIENT_ID": "",
     "STRAVA_CLIENT_SECRET": "",
-    "MCP_SERVER_URL": "",
+    "MCP_SERVER_URL": "https://tech-europe-paris-ade1e47e.alpic.live",
     "NODE_ENV": "production"
   }
 }

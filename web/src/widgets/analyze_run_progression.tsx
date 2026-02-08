@@ -27,6 +27,18 @@ export default function AnalyzeRunProgression() {
     );
   }
 
+  // Safety check - ensure output exists before destructuring
+  if (!toolInfo.output) {
+    return (
+      <div style={{ padding: DesignSystem.spacing.card, textAlign: "center" }}>
+        <div style={{ fontSize: "40px", marginBottom: DesignSystem.spacing.compact }}>🔍</div>
+        <p style={{ margin: 0, color: DesignSystem.colors.semantic.stable, fontSize: "14px" }}>
+          No progression data available
+        </p>
+      </div>
+    );
+  }
+
   const { route, progression, summary } = toolInfo.output as any;
 
   // Safety check

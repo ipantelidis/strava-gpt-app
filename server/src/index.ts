@@ -248,8 +248,7 @@ app.get("/oauth/callback", async (req, res) => {
 });
 
 // OAuth discovery endpoints for Strava
-// Force localhost for OAuth callback (production users won't be able to use this)
-const serverUrl = "http://localhost:3000";
+const serverUrl = process.env.MCP_SERVER_URL || "http://localhost:3000";
 app.use(
   mcpAuthMetadataRouter({
     oauthMetadata: {

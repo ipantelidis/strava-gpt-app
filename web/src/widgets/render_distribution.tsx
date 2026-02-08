@@ -169,6 +169,18 @@ export default function RenderDistribution() {
     );
   }
 
+  // Safety check - ensure output exists before destructuring
+  if (!toolInfo.output) {
+    return (
+      <div style={{ padding: DesignSystem.spacing.card, textAlign: "center" }}>
+        <div style={{ fontSize: "40px", marginBottom: DesignSystem.spacing.compact }}>📊</div>
+        <p style={{ margin: 0, color: DesignSystem.colors.semantic.decline, fontSize: "14px" }}>
+          No distribution data available
+        </p>
+      </div>
+    );
+  }
+
   const { data, config } = toolInfo.output as {
     data: number[];
     config: DistributionConfig;

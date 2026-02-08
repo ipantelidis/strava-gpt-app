@@ -34,6 +34,18 @@ export default function ConnectStrava() {
     );
   }
 
+  // Safety check - ensure output exists before destructuring
+  if (!toolInfo.output) {
+    return (
+      <div style={{ padding: DesignSystem.spacing.card, textAlign: "center" }}>
+        <div style={{ fontSize: "40px", marginBottom: DesignSystem.spacing.compact }}>⚠️</div>
+        <p style={{ margin: 0, color: DesignSystem.colors.semantic.decline, fontSize: "14px" }}>
+          No authorization data available
+        </p>
+      </div>
+    );
+  }
+
   const { authUrl } = toolInfo.output as { authUrl: string; serverUrl: string };
 
   return (
@@ -157,10 +169,12 @@ export default function ConnectStrava() {
                 lineHeight: "1.6",
               }}
             >
+              <li>Click the "Connect Strava" button above</li>
               <li>You'll be redirected to Strava's authorization page</li>
-              <li>Click "Authorize" to grant access to your activities</li>
-              <li>You'll receive an access token on the callback page</li>
-              <li>Copy the token and provide it when using the training tools</li>
+              <li>Click "Authorize" to grant access</li>
+              <li><strong>Copy the authorization code from the URL</strong> (after <code>?code=</code>)</li>
+              <li>Return here and say: "My code is [paste the code]"</li>
+              <li>I'll exchange it for an access token</li>
             </ol>
             <p
               style={{
@@ -168,9 +182,13 @@ export default function ConnectStrava() {
                 marginTop: DesignSystem.spacing.element,
                 fontSize: "12px",
                 color: "rgba(0, 0, 0, 0.5)",
+                background: "rgba(245, 158, 11, 0.1)",
+                padding: "8px",
+                borderRadius: "4px",
+                border: "1px solid rgba(245, 158, 11, 0.3)",
               }}
             >
-              💡 The token is valid for 6 hours
+              💡 <strong>Example:</strong> If the URL is <code>http://localhost:3000/oauth/callback?code=abc123xyz</code>, copy <code>abc123xyz</code>
             </p>
           </div>
         </div>

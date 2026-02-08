@@ -26,6 +26,18 @@ export default function CompareTrainingWeeks() {
     );
   }
 
+  // Safety check - ensure output exists before destructuring
+  if (!toolInfo.output) {
+    return (
+      <div style={{ padding: DesignSystem.spacing.card, textAlign: "center" }}>
+        <div style={{ fontSize: "40px", marginBottom: DesignSystem.spacing.compact }}>⚠️</div>
+        <p style={{ margin: 0, color: DesignSystem.colors.semantic.decline, fontSize: "14px" }}>
+          No comparison data available
+        </p>
+      </div>
+    );
+  }
+
   const { currentWeek, previousWeek, changes, trend } = toolInfo.output as any;
 
   const getTrendConfig = () => {

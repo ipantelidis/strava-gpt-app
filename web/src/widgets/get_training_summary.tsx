@@ -27,6 +27,21 @@ function TrainingSummaryContent() {
     );
   }
 
+  // Safety check - ensure output exists before destructuring
+  if (!toolInfo.output) {
+    return (
+      <div style={{ padding: DesignSystem.spacing.card, textAlign: "center" }}>
+        <div style={{ fontSize: "40px", marginBottom: DesignSystem.spacing.compact }}>⚠️</div>
+        <p style={{ margin: 0, color: DesignSystem.colors.semantic.decline, fontSize: "14px" }}>
+          No training data available
+        </p>
+        <p style={{ margin: 0, marginTop: DesignSystem.spacing.compact, color: "rgba(0, 0, 0, 0.5)", fontSize: "12px" }}>
+          This may be due to missing data from Strava or an incomplete response.
+        </p>
+      </div>
+    );
+  }
+
   const { period, stats, runs } = toolInfo.output as any;
 
   // Debug: log what we're getting
