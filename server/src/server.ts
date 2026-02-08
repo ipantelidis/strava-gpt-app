@@ -25,7 +25,7 @@ import {
   dustErrorResponse,
   type WeatherAgentInput,
 } from "./dust/index.js";
-import { generateRoutes, type RouteRequest } from "./routes/index.js";
+import { generateRoutes, enrichPOIsWithDust, type RouteRequest } from "./routes/index.js";
 
 const server = new McpServer(
   {
@@ -1328,6 +1328,11 @@ OUTPUT:
         .enum(["minimize", "maximize", "moderate"])
         .optional()
         .describe("Hill preference (minimize = flat, maximize = hilly)"),
+      enrichPOIs: z
+        .boolean()
+        .optional()
+        .default(false)
+        .describe("Enrich POIs with web search for runner amenities, safety info, tips (slower but more informative)"),
     },
   },
   async ({
@@ -1342,6 +1347,7 @@ OUTPUT:
     safetyPriority,
     trafficLevel,
     elevationPreference,
+    enrichPOIs,
   }) => {
     try {
       const mapboxToken = process.env.MAPBOX_API_KEY;
@@ -1371,10 +1377,22 @@ OUTPUT:
         safetyPriority,
         trafficLevel,
         elevationPreference,
+        enrichPOIs,
       };
 
       // Generate routes
-      const routes = await generateRoutes(request, mapboxToken);
+      let routes = await generateRoutes(request, mapboxToken);
+
+      // Optional: Enrich POIs with Dust agent web search
+      if (enrichPOIs) {
+        try {
+          const dustClient = createDustClient();
+          routes = await enrichPOIsWithDust(routes, location, dustClient);
+        } catch (error) {
+          console.warn("POI enrichment failed, continuing with basic POIs:", error);
+          // Continue with non-enriched routes
+        }
+      }
 
       // Format response
       let responseText = `🗺️ **Generated ${routes.length} Route Options for ${location}**\n\n`;
@@ -1398,7 +1416,14 @@ OUTPUT:
         if (route.pointsOfInterest.length > 0) {
           responseText += `- Points of Interest:\n`;
           route.pointsOfInterest.forEach((poi) => {
-            responseText += `  • ${poi.name}\n`;
+            responseText += `  • ${poi.name}`;
+            if (poi.runnerInfo) {
+              responseText += ` - ${poi.runnerInfo}`;
+            }
+            if (poi.tips) {
+              responseText += ` (${poi.tips})`;
+            }
+            responseText += `\n`;
           });
         }
 

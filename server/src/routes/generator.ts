@@ -424,3 +424,50 @@ function estimateTrafficLevel(request: RouteRequest): "low" | "medium" | "high" 
     return "medium"; // Urban routes
   }
 }
+
+/**
+ * Enrich POIs with web search data via Dust agent (optional)
+ */
+export async function enrichPOIsWithDust(
+  routes: GeneratedRoute[],
+  location: string,
+  dustClient: any
+): Promise<GeneratedRoute[]> {
+  try {
+    // Import the POI enrichment function
+    const { callPOIEnrichmentAgent } = await import("../dust/index.js");
+
+    // Collect all unique POIs from all routes
+    const allPOIs = routes.flatMap((r) => r.pointsOfInterest);
+    if (allPOIs.length === 0) return routes;
+
+    // Remove duplicates by name
+    const uniquePOIs = Array.from(
+      new Map(allPOIs.map((poi) => [poi.name, poi])).values()
+    );
+
+    // Call Dust agent
+    const enriched = await callPOIEnrichmentAgent(dustClient, {
+      location,
+      pois: uniquePOIs.map((poi) => ({ name: poi.name, type: poi.type })),
+      query: "runner amenities water fountains restrooms safety tips",
+    });
+
+    // Create a map of enriched data
+    const enrichedMap = new Map(
+      enriched.enrichedPOIs.map((poi) => [poi.name, poi])
+    );
+
+    // Merge enriched data back into routes
+    return routes.map((route) => ({
+      ...route,
+      pointsOfInterest: route.pointsOfInterest.map((poi) => {
+        const enrichedPOI = enrichedMap.get(poi.name);
+        return enrichedPOI ? { ...poi, ...enrichedPOI } : poi;
+      }),
+    }));
+  } catch (error) {
+    console.warn("POI enrichment failed, using basic POIs:", error);
+    return routes; // Graceful fallback
+  }
+}

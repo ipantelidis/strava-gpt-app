@@ -71,3 +71,50 @@ export async function callWeatherAgent(
 
   return response.data as WeatherAgentOutput;
 }
+
+/**
+ * POI Enrichment Agent Interface
+ * Enriches POIs with runner-specific information via web search
+ */
+export interface POIEnrichmentInput {
+  location: string;
+  pois: Array<{ name: string; type: string }>;
+  query?: string;
+}
+
+export interface POIEnrichmentOutput {
+  enrichedPOIs: Array<{
+    name: string;
+    runnerInfo?: string;
+    tips?: string;
+    bestTime?: string;
+    safetyNotes?: string;
+  }>;
+}
+
+/**
+ * POI Enrichment Agent wrapper
+ */
+export async function callPOIEnrichmentAgent(
+  client: DustClient,
+  input: POIEnrichmentInput,
+  conversationId?: string
+): Promise<POIEnrichmentOutput> {
+  const agentId = process.env.DUST_POI_AGENT_ID || "poi-enrichment";
+
+  const request: DustAgentRequest = {
+    agentId,
+    input,
+    conversationId,
+  };
+
+  const response = await client.callAgent(request);
+
+  if (!response.success) {
+    throw new Error(
+      `POI enrichment agent failed: ${response.error?.message || "Unknown error"}`
+    );
+  }
+
+  return response.data as POIEnrichmentOutput;
+}

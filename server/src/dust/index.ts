@@ -22,11 +22,14 @@ export type {
 export {
   AGENT_IDS,
   callWeatherAgent,
+  callPOIEnrichmentAgent,
 } from "./agents.js";
 
 export type {
   WeatherAgentInput,
   WeatherAgentOutput,
+  POIEnrichmentInput,
+  POIEnrichmentOutput,
 } from "./agents.js";
 
 export {

@@ -21,6 +21,7 @@ export interface RouteRequest {
   safetyPriority?: number; // 0-100, higher = safer
   trafficLevel?: "low" | "medium" | "high"; // Preferred traffic level
   elevationPreference?: "minimize" | "maximize" | "moderate"; // Hill preference
+  enrichPOIs?: boolean; // Enrich POIs with web search (slower but more informative)
 }
 
 export interface GeneratedRoute {
@@ -39,6 +40,11 @@ export interface GeneratedRoute {
     lat: number;
     lng: number;
     name: string;
+    // Optional enriched fields from Dust agent
+    runnerInfo?: string;
+    tips?: string;
+    bestTime?: string;
+    safetyNotes?: string;
   }>;
   safetyScore: number; // 0-100
   scenicScore: number; // 0-100
