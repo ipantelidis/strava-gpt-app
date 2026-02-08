@@ -1,4 +1,5 @@
-import { generateHelpers } from "skybridge/web";
+import "@/index.css";
+import { generateHelpers, mountWidget } from "skybridge/web";
 import type { AppType } from "../../../server/src/server";
 import { DesignSystem, applyGradientText, createGradientOverlay, getTrendIcon, getSemanticColor, getSemanticBackground, applyGlassmorphism } from "../design-system";
 
@@ -206,3 +207,6 @@ export default function CompareTrainingWeeks() {
     </div>
   );
 }
+
+
+mountWidget(<CompareTrainingWeeks />);

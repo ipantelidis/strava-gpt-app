@@ -1,5 +1,6 @@
+import "@/index.css";
 import React from "react";
-import { generateHelpers } from "skybridge/web";
+import { generateHelpers, mountWidget } from "skybridge/web";
 import type { AppType } from "../../../server/src/server";
 import {
   DesignSystem,
@@ -493,3 +494,5 @@ export default function RenderHeatmap() {
     </div>
   );
 }
+
+mountWidget(<RenderHeatmap />);

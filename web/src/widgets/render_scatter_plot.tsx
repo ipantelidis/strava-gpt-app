@@ -1,4 +1,5 @@
-import { generateHelpers } from "skybridge/web";
+import "@/index.css";
+import { generateHelpers, mountWidget } from "skybridge/web";
 import type { AppType } from "../../../server/src/server";
 import {
   DesignSystem,
@@ -440,3 +441,5 @@ export default function RenderScatterPlot() {
     </div>
   );
 }
+
+mountWidget(<RenderScatterPlot />);

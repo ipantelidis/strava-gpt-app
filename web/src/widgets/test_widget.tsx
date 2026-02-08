@@ -1,3 +1,4 @@
+import "@/index.css";
 export default function TestWidget() {
   return (
     <div style={{ padding: "20px", background: "#f0f0f0", borderRadius: "8px" }}>
@@ -6,3 +7,5 @@ export default function TestWidget() {
     </div>
   );
 }
+
+mountWidget(<TestWidget />);

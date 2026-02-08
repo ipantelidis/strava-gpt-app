@@ -1,4 +1,5 @@
-import { generateHelpers } from "skybridge/web";
+import "@/index.css";
+import { generateHelpers, mountWidget } from "skybridge/web";
 import type { AppType } from "../../../server/src/server";
 import { DesignSystem, applyGlassmorphism, createGradientOverlay } from "../design-system";
 
@@ -177,3 +178,4 @@ export default function ConnectStrava() {
     </div>
   );
 }
+mountWidget(<ConnectStrava />);

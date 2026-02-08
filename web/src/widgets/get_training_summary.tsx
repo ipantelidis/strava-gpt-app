@@ -1,4 +1,5 @@
-import { generateHelpers } from "skybridge/web";
+import "@/index.css";
+import { generateHelpers, mountWidget } from "skybridge/web";
 import type { AppType } from "../../../server/src/server";
 import { DesignSystem, applyGradientText, createGradientOverlay } from "../design-system";
 import { ErrorBoundary } from "../ErrorBoundary";
@@ -201,3 +202,5 @@ export default function TrainingSummary() {
     </ErrorBoundary>
   );
 }
+
+mountWidget(<TrainingSummary />);

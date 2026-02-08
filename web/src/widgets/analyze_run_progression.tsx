@@ -1,4 +1,5 @@
-import { generateHelpers } from "skybridge/web";
+import "@/index.css";
+import { generateHelpers, mountWidget } from "skybridge/web";
 import type { AppType } from "../../../server/src/server";
 import { DesignSystem, applyGradientText, createGradientOverlay, getSemanticColor, getTrendIcon } from "../design-system";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -356,3 +357,6 @@ export default function AnalyzeRunProgression() {
     </div>
   );
 }
+
+
+mountWidget(<AnalyzeRunProgression />);

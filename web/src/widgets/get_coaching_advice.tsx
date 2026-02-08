@@ -1,4 +1,5 @@
-import { generateHelpers } from "skybridge/web";
+import "@/index.css";
+import { generateHelpers, mountWidget } from "skybridge/web";
 import type { AppType } from "../../../server/src/server";
 import { DesignSystem, applyGradientText, createGradientOverlay, applyGlassmorphism, getSemanticBackground } from "../design-system";
 
@@ -214,3 +215,6 @@ export default function CoachingAdvice() {
     </div>
   );
 }
+
+
+mountWidget(<CoachingAdvice />);
