@@ -168,7 +168,9 @@ server.registerTool(
 server.registerTool(
   "fetch_activities",
   {
-    description: `⚠️ REQUIRES AUTHORIZATION: Fetch raw Strava running activities with configurable detail level. This is a DATA-ONLY tool (no UI) that returns structured JSON for GPT reasoning or visualization.
+    description: `Fetch raw Strava running activities with configurable detail level. This is a DATA-ONLY tool (no UI) that returns structured JSON for GPT reasoning or visualization.
+
+AUTHENTICATION: OAuth handles authentication automatically. If the user has already connected their Strava account in this conversation, the token is available - just call the tool. Only prompt for authentication if you receive an authentication error.
 
 WHEN TO USE:
 - Custom analysis not covered by integrated widgets
@@ -357,7 +359,9 @@ EXAMPLE QUERIES:
 server.registerWidget(
   "analyze_pace_patterns",
   {
-    description: `⚠️ REQUIRES AUTHORIZATION: Analyze pace distribution across running activities. Groups activities by run type (easy, long, hard, recovery) or distance range, then calculates statistics (mean, median, std dev) for each group. This is an INTEGRATED widget (combines data fetching + visualization).
+    description: `Analyze pace distribution across running activities. Groups activities by run type (easy, long, hard, recovery) or distance range, then calculates statistics (mean, median, std dev) for each group. This is an INTEGRATED widget (combines data fetching + visualization).
+
+AUTHENTICATION: OAuth handles authentication automatically. If the user has already connected their Strava account in this conversation, the token is available - just call the tool. Only prompt for authentication if you receive an authentication error.
 
 WHEN TO USE (PREFER THIS):
 - Analyzing pace patterns across different run types
@@ -584,7 +588,9 @@ EXAMPLE QUERIES:
 server.registerTool(
   "calculate_pace_distribution",
   {
-    description: `⚠️ REQUIRES AUTHORIZATION: Analyze pace distribution across running activities. Groups activities by run type (easy, long, hard, recovery) or distance range, then calculates statistics (mean, median, std dev) for each group. This is a DATA-ONLY tool (no UI).
+    description: `Analyze pace distribution across running activities. Groups activities by run type (easy, long, hard, recovery) or distance range, then calculates statistics (mean, median, std dev) for each group. This is a DATA-ONLY tool (no UI).
+
+AUTHENTICATION: OAuth handles authentication automatically. If the user has already connected their Strava account in this conversation, the token is available - just call the tool. Only prompt for authentication if you receive an authentication error.
 
 WHEN TO USE:
 - Analyzing pace patterns across different run types
@@ -824,7 +830,9 @@ EXAMPLE QUERIES:
 server.registerWidget(
   "analyze_elevation_trends",
   {
-    description: `⚠️ REQUIRES AUTHORIZATION: Analyze how elevation gain impacts running pace. Calculates pace adjustments based on elevation gain and shows the hilliest runs with flat-equivalent paces. This is an INTEGRATED widget (combines data fetching + visualization).
+    description: `Analyze how elevation gain impacts running pace. Calculates pace adjustments based on elevation gain and shows the hilliest runs with flat-equivalent paces. This is an INTEGRATED widget (combines data fetching + visualization).
+
+AUTHENTICATION: OAuth handles authentication automatically. If the user has already connected their Strava account in this conversation, the token is available - just call the tool. Only prompt for authentication if you receive an authentication error.
 
 WHEN TO USE (PREFER THIS):
 - Understanding how hills affect performance
@@ -986,7 +994,9 @@ EXAMPLE QUERIES:
 server.registerTool(
   "analyze_elevation_impact",
   {
-    description: `⚠️ REQUIRES AUTHORIZATION: Analyze how elevation gain impacts running pace. Calculates pace adjustments based on elevation gain and computes climb-adjusted pace for each run. This is a DATA-ONLY tool (no UI).
+    description: `Analyze how elevation gain impacts running pace. Calculates pace adjustments based on elevation gain and computes climb-adjusted pace for each run. This is a DATA-ONLY tool (no UI).
+
+AUTHENTICATION: OAuth handles authentication automatically. If the user has already connected their Strava account in this conversation, the token is available - just call the tool. Only prompt for authentication if you receive an authentication error.
 
 WHEN TO USE:
 - Understanding how hills affect performance
@@ -1168,7 +1178,9 @@ EXAMPLE QUERIES:
 server.registerTool(
   "get_run_comparison",
   {
-    description: `⚠️ REQUIRES AUTHORIZATION: Compare two specific runs side-by-side. Returns structured comparison data with aligned metrics, deltas, and trend analysis. This is a DATA-ONLY tool (no UI).
+    description: `Compare two specific runs side-by-side. Returns structured comparison data with aligned metrics, deltas, and trend analysis. This is a DATA-ONLY tool (no UI).
+
+AUTHENTICATION: OAuth handles authentication automatically. If the user has already connected their Strava account in this conversation, the token is available - just call the tool. Only prompt for authentication if you receive an authentication error.
 
 ⚠️ IMPORTANT: Always pass runs from OLDEST to NEWEST (run1Id = older run, run2Id = newer run). This ensures deltas show progression correctly (positive = improvement).
 
@@ -1335,7 +1347,9 @@ NOTE: You need activity IDs. If user doesn't provide them, first call fetch_acti
 server.registerTool(
   "compute_training_load",
   {
-    description: `⚠️ REQUIRES AUTHORIZATION: Calculate training load metrics including acute load (7 days), chronic load (28 days), and acute:chronic ratio. This is a DATA-ONLY tool (no UI).
+    description: `Calculate training load metrics including acute load (7 days), chronic load (28 days), and acute:chronic ratio. This is a DATA-ONLY tool (no UI).
+
+AUTHENTICATION: OAuth handles authentication automatically. If the user has already connected their Strava account in this conversation, the token is available - just call the tool. Only prompt for authentication if you receive an authentication error.
 
 WHEN TO USE:
 - Assessing training volume and intensity
@@ -1894,7 +1908,9 @@ OUTPUT:
 server.registerWidget(
   "get_training_summary",
   {
-    description: `⚠️ REQUIRES AUTHORIZATION: Analyze recent running activities. This is an INTEGRATED widget (combines data fetching + visualization).
+    description: `Analyze recent running activities. This is an INTEGRATED widget (combines data fetching + visualization).
+
+AUTHENTICATION: OAuth handles authentication automatically. If the user has already connected their Strava account in this conversation, the token is available - just call the tool. Only prompt for authentication if you receive an authentication error.
 
 WHEN TO USE (PREFER THIS):
 - Quick training overview for recent period
@@ -2031,7 +2047,9 @@ EXAMPLE QUERIES:
 server.registerWidget(
   "compare_training_weeks",
   {
-    description: `⚠️ REQUIRES AUTHORIZATION: Compare training weeks. This is an INTEGRATED widget (combines data fetching + visualization).
+    description: `Compare training weeks. This is an INTEGRATED widget (combines data fetching + visualization).
+
+AUTHENTICATION: OAuth handles authentication automatically. If the user has already connected their Strava account in this conversation, the token is available - just call the tool. Only prompt for authentication if you receive an authentication error.
 
 WHEN TO USE (PREFER THIS):
 - Week-over-week training comparison
@@ -2547,7 +2565,9 @@ DATA SOURCES: fetch_activities, calculate_pace_distribution, or any data tool th
 server.registerWidget(
   "analyze_run_progression",
   {
-    description: `⚠️ REQUIRES AUTHORIZATION: Analyze performance progression for a specific route over time. This is an INTEGRATED widget (combines data fetching + visualization).
+    description: `Analyze performance progression for a specific route over time. This is an INTEGRATED widget (combines data fetching + visualization).
+
+AUTHENTICATION: OAuth handles authentication automatically. If the user has already connected their Strava account in this conversation, the token is available - just call the tool. Only prompt for authentication if you receive an authentication error.
 
 WHEN TO USE (PREFER THIS):
 - Tracking improvement on a specific route
