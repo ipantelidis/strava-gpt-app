@@ -164,11 +164,12 @@ See [GPT Orchestration Guide](docs/GPT_ORCHESTRATION_GUIDE.md) for detailed orch
 ### Data Tools (No UI)
 
 #### Tool: `fetch_activities`
-- **Purpose**: Fetch raw Strava running activities with configurable detail level
-- **Input**: `{ days?: number, includeDetails?: boolean, token?: string }`
+- **Purpose**: Fetch raw Strava running activities with filtering and sorting
+- **Input**: `{ days?: number, limit?: number, sortBy?: "date"|"distance"|"pace", minDistance?: number, includeDetails?: boolean, token?: string }`
 - **Output**: Array of activities with metrics (distance, pace, elevation, time, splits, HR, GPS)
-- **Use for**: Custom analysis, flexible data access, building custom visualizations
-- **Example queries**: "Fetch my last 30 days", "Get activities with heart rate data"
+- **Use for**: Small datasets (< 14 days), custom analysis, building custom visualizations
+- **Filtering**: Supports limit, sortBy, minDistance to prevent context explosion
+- **Example queries**: "Get my 3 longest runs from this week", "Show me runs over 10km"
 
 #### Tool: `get_run_comparison`
 - **Purpose**: Compare two specific runs side-by-side
@@ -176,20 +177,6 @@ See [GPT Orchestration Guide](docs/GPT_ORCHESTRATION_GUIDE.md) for detailed orch
 - **Output**: Comparison data with aligned metrics, deltas, and trend analysis
 - **Use for**: Analyzing performance differences between two specific activities
 - **Example queries**: "Compare run X to run Y", "Show difference between these activities"
-
-#### Tool: `calculate_pace_distribution`
-- **Purpose**: Analyze pace distribution across activities
-- **Input**: `{ days?: number, groupBy: "runType" | "distanceRange", token?: string }`
-- **Output**: Grouped pace statistics (mean, median, std dev) by run type or distance
-- **Use for**: Understanding pace patterns, comparing easy vs hard vs long run paces
-- **Example queries**: "How does my pace vary by run type?", "Show pace distribution"
-
-#### Tool: `analyze_elevation_impact`
-- **Purpose**: Calculate pace adjustments based on elevation gain
-- **Input**: `{ days?: number, token?: string }`
-- **Output**: Elevation-adjusted pace for each run with adjustment calculations
-- **Use for**: Understanding terrain impact, comparing hilly vs flat runs
-- **Example queries**: "How does elevation affect my pace?", "What's my flat-equivalent pace?"
 
 #### Tool: `compute_training_load`
 - **Purpose**: Calculate training load metrics (acute, chronic, ratio)

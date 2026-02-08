@@ -174,12 +174,20 @@ WHEN TO USE:
 - Custom analysis not covered by integrated widgets
 - Need raw activity data for flexible reasoning
 - Building custom visualizations with render_* widgets
-- Queries like: "Show me all my runs from last month", "What activities did I do?", "Get my recent training data"
+- Small datasets (< 14 days recommended)
+- Queries like: "Show me my last 5 runs", "Get my 3 longest runs from this week"
 
 WHEN NOT TO USE:
+- Large date ranges without filtering (> 30 days) → Use integrated widgets or add limit/filters
 - For training summaries → use get_training_summary (faster, integrated)
 - For week comparisons → use compare_training_weeks (faster, integrated)
-- For training load analysis → use compute_training_load (data tool)
+- For pace analysis → use analyze_pace_patterns (integrated widget)
+- For elevation analysis → use analyze_elevation_trends (integrated widget)
+
+FILTERING TIPS:
+- Use 'limit' to cap results: "Find my 4 longest runs" → limit=4, sortBy="distance"
+- Use 'minDistance' to filter: "Runs over 10km" → minDistance=10
+- Combine filters: "My 3 fastest long runs" → minDistance=10, limit=3, sortBy="pace"
 
 WORKFLOW:
 1. Call this tool to fetch activities
@@ -187,15 +195,29 @@ WORKFLOW:
 3. Optionally visualize with render_line_chart, render_scatter_plot, or render_heatmap
 
 EXAMPLE QUERIES:
-- "Fetch my last 30 days of activities with detailed splits"
-- "Get my running data from the past week"
-- "Show me all activities with heart rate data"`,
+- "Fetch my last 5 runs" → days=7, limit=5
+- "Get my 3 longest runs from the past month" → days=30, limit=3, sortBy="distance"
+- "Show me runs over 10km from this week" → days=7, minDistance=10
+- "Find my fastest 5k runs" → days=30, minDistance=5, sortBy="pace"`,
     inputSchema: {
       days: z
         .number()
         .optional()
         .default(7)
         .describe("Number of days to fetch activities from (default: 7)"),
+      limit: z
+        .number()
+        .optional()
+        .describe("Maximum number of activities to return (optional - useful for 'find my N longest/fastest runs')"),
+      sortBy: z
+        .enum(["date", "distance", "pace"])
+        .optional()
+        .default("date")
+        .describe("Sort activities by: date (newest first), distance (longest first), or pace (fastest first)"),
+      minDistance: z
+        .number()
+        .optional()
+        .describe("Minimum distance in kilometers (optional - filter out shorter runs)"),
       includeDetails: z
         .boolean()
         .optional()
@@ -207,7 +229,7 @@ EXAMPLE QUERIES:
         .describe("Strava access token (optional - OAuth handles authentication automatically)"),
     },
   },
-  async ({ days, includeDetails, token }, extra) => {
+  async ({ days, limit, sortBy, minDistance, includeDetails, token }, extra) => {
     // Try manual token first, then OAuth
     let auth = token ? { userId: "manual", accessToken: token } : await getAuth(extra);
     
@@ -216,7 +238,7 @@ EXAMPLE QUERIES:
     }
 
     try {
-      // Generate cache key
+      // Generate cache key (without filters - we filter after caching)
       const cacheKey: CacheKey = {
         userId: auth.userId,
         days,
@@ -224,59 +246,72 @@ EXAMPLE QUERIES:
       };
 
       // Check cache first
+      let activities: StravaActivity[];
+      let cached = false;
+      
       const cachedEntry = getCachedActivities(cacheKey);
       
       if (cachedEntry) {
-        // Return cached data
-        return {
-          structuredContent: {
-            data: cachedEntry.data,
-            metadata: {
-              fetchedAt: cachedEntry.fetchedAt,
-              source: "strava",
-              cached: true,
-              count: cachedEntry.metadata.count,
-              dateRange: {
-                days,
-                from: new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                to: new Date().toISOString().split('T')[0],
-              },
-              includeDetails,
-            },
-          },
-          content: [
-            {
-              type: "text",
-              text: `Retrieved ${cachedEntry.metadata.count} running activities from cache (last ${days} days${includeDetails ? ' with detailed data' : ''}).`,
-            },
-          ],
-          isError: false,
-        };
+        activities = cachedEntry.data;
+        cached = true;
+      } else {
+        // Cache miss - fetch from Strava
+        activities = await fetchActivitiesWithDetails(
+          auth.accessToken,
+          days,
+          includeDetails
+        );
+        
+        // Store in cache
+        setCachedActivities(cacheKey, activities);
       }
 
-      // Cache miss - fetch from Strava
-      const activities = await fetchActivitiesWithDetails(
-        auth.accessToken,
-        days,
-        includeDetails
-      );
-
-      // Store in cache
-      setCachedActivities(cacheKey, activities);
+      // Apply filters
+      let filteredActivities = [...activities];
+      
+      // Filter by minimum distance
+      if (minDistance) {
+        filteredActivities = filteredActivities.filter(
+          a => (a.distance / 1000) >= minDistance
+        );
+      }
+      
+      // Sort activities
+      if (sortBy === "distance") {
+        filteredActivities.sort((a, b) => b.distance - a.distance);
+      } else if (sortBy === "pace") {
+        filteredActivities.sort((a, b) => b.average_speed - a.average_speed); // Higher speed = faster pace
+      } else {
+        // Default: sort by date (newest first)
+        filteredActivities.sort((a, b) => 
+          new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+        );
+      }
+      
+      // Apply limit
+      if (limit) {
+        filteredActivities = filteredActivities.slice(0, limit);
+      }
 
       // Return structured data output
       return {
         structuredContent: {
-          data: activities,
+          data: filteredActivities,
           metadata: {
-            fetchedAt: new Date().toISOString(),
+            fetchedAt: cachedEntry?.fetchedAt ?? new Date().toISOString(),
             source: "strava",
-            cached: false,
-            count: activities.length,
+            cached,
+            count: filteredActivities.length,
+            totalBeforeFiltering: activities.length,
             dateRange: {
               days,
               from: new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
               to: new Date().toISOString().split('T')[0],
+            },
+            filters: {
+              limit,
+              sortBy,
+              minDistance,
             },
             includeDetails,
           },
@@ -284,7 +319,7 @@ EXAMPLE QUERIES:
         content: [
           {
             type: "text",
-            text: `Fetched ${activities.length} running activities from the last ${days} days${includeDetails ? ' with detailed data (splits, HR, GPS)' : ''}.`,
+            text: `${cached ? 'Retrieved' : 'Fetched'} ${filteredActivities.length} running activities${activities.length !== filteredActivities.length ? ` (filtered from ${activities.length})` : ''} from the last ${days} days${includeDetails ? ' with detailed data' : ''}${sortBy ? `, sorted by ${sortBy}` : ''}${minDistance ? `, minimum ${minDistance}km` : ''}${limit ? `, limited to ${limit}` : ''}.`,
           },
         ],
         isError: false,
@@ -318,7 +353,234 @@ EXAMPLE QUERIES:
   },
 );
 
-// Data Tool: Calculate Pace Distribution
+// Integrated Widget: Analyze Pace Patterns
+server.registerWidget(
+  "analyze_pace_patterns",
+  {
+    description: `⚠️ REQUIRES AUTHORIZATION: Analyze pace distribution across running activities. Groups activities by run type (easy, long, hard, recovery) or distance range, then calculates statistics (mean, median, std dev) for each group. This is an INTEGRATED widget (combines data fetching + visualization).
+
+WHEN TO USE (PREFER THIS):
+- Analyzing pace patterns across different run types
+- Understanding pace variability and consistency
+- Comparing easy vs hard vs long run paces
+- Queries like: "How does my pace vary by run type?", "What's my average pace for long runs?", "Show me pace distribution"
+
+WHEN NOT TO USE:
+- Need raw activity data for custom analysis → use fetch_activities with filters
+- Comparing specific runs → use get_run_comparison
+
+WORKFLOW:
+- Single call fetches activities, groups them, calculates stats, and displays results
+- No additional visualization needed (integrated stats display)
+
+EXAMPLE QUERIES:
+- "What's my pace distribution across different run types?"
+- "Compare my easy run pace to my hard run pace"
+- "Show me how my pace varies by distance"
+- "Analyze my pace consistency over the last month"`,
+  },
+  {
+    description: "Analyze how pace varies across different run types or distance ranges. Fetches activities, classifies them into groups (easy/long/hard/recovery or short/medium/long), calculates statistics for each group, and displays results with example runs. Use this to understand pace patterns and consistency.",
+    inputSchema: {
+      days: z
+        .number()
+        .optional()
+        .default(30)
+        .describe("Number of days to analyze (default: 30)"),
+      groupBy: z
+        .enum(["runType", "distanceRange"])
+        .describe("Grouping criteria: 'runType' (easy/long/hard/recovery) or 'distanceRange' (short/medium/long)"),
+      token: z
+        .string()
+        .optional()
+        .describe("Strava access token (optional - OAuth handles authentication automatically)"),
+    },
+  },
+  async ({ days, groupBy, token }, extra) => {
+    // Try manual token first, then OAuth
+    let auth = token ? { userId: "manual", accessToken: token } : await getAuth(extra);
+    
+    if (!auth) {
+      return authErrorResponse("missing_token");
+    }
+
+    try {
+      // Fetch activities
+      const afterTimestamp = Math.floor(Date.now() / 1000 - days * 24 * 60 * 60);
+      const activities = await fetchRecentActivities(auth.accessToken, afterTimestamp);
+
+      if (activities.length === 0) {
+        return {
+          structuredContent: {
+            groups: [],
+            groupBy,
+            totalActivities: 0,
+          },
+          content: [
+            {
+              type: "text",
+              text: `No running activities found in the last ${days} days.`,
+            },
+          ],
+          isError: false,
+        };
+      }
+
+      // Calculate average pace for all activities to determine thresholds
+      const allPaces = activities.map(a => 1000 / a.average_speed); // seconds per km
+      const avgPace = allPaces.reduce((sum, p) => sum + p, 0) / allPaces.length;
+
+      // Group activities based on criteria
+      const groups: Map<string, StravaActivity[]> = new Map();
+
+      if (groupBy === "runType") {
+        // Classify by run type: easy, long, hard, recovery
+        for (const activity of activities) {
+          const pace = 1000 / activity.average_speed; // seconds per km
+          const distanceKm = activity.distance / 1000;
+          
+          let runType: string;
+          
+          if (distanceKm >= 15) {
+            runType = "long";
+          } else if (pace > avgPace * 1.15) {
+            runType = "recovery";
+          } else if (pace < avgPace * 0.95) {
+            runType = "hard";
+          } else {
+            runType = "easy";
+          }
+          
+          if (!groups.has(runType)) {
+            groups.set(runType, []);
+          }
+          groups.get(runType)!.push(activity);
+        }
+      } else {
+        // Group by distance range: short (<5km), medium (5-15km), long (>=15km)
+        for (const activity of activities) {
+          const distanceKm = activity.distance / 1000;
+          
+          let range: string;
+          if (distanceKm < 5) {
+            range = "short";
+          } else if (distanceKm < 15) {
+            range = "medium";
+          } else {
+            range = "long";
+          }
+          
+          if (!groups.has(range)) {
+            groups.set(range, []);
+          }
+          groups.get(range)!.push(activity);
+        }
+      }
+
+      // Calculate statistics for each group
+      const groupStats = Array.from(groups.entries()).map(([groupName, groupActivities]) => {
+        const paces = groupActivities.map(a => 1000 / a.average_speed); // seconds per km
+        
+        // Calculate mean
+        const mean = paces.reduce((sum, p) => sum + p, 0) / paces.length;
+        
+        // Calculate median
+        const sortedPaces = [...paces].sort((a, b) => a - b);
+        const median = sortedPaces.length % 2 === 0
+          ? (sortedPaces[sortedPaces.length / 2 - 1] + sortedPaces[sortedPaces.length / 2]) / 2
+          : sortedPaces[Math.floor(sortedPaces.length / 2)];
+        
+        // Calculate standard deviation
+        const variance = paces.reduce((sum, p) => sum + Math.pow(p - mean, 2), 0) / paces.length;
+        const stdDev = Math.sqrt(variance);
+        
+        // Convert to pace format
+        const formatPace = (seconds: number) => {
+          const minutes = Math.floor(seconds / 60);
+          const secs = Math.round(seconds % 60);
+          return `${minutes}:${secs.toString().padStart(2, "0")}`;
+        };
+        
+        // Return only top 3 example runs (not all activities)
+        const exampleRuns = groupActivities
+          .slice(0, 3)
+          .map(a => ({
+            id: a.id,
+            name: a.name,
+            date: a.start_date_local.split("T")[0],
+            distance: Math.round((a.distance / 1000) * 10) / 10,
+            pace: metersPerSecondToPace(a.average_speed),
+          }));
+        
+        return {
+          group: groupName,
+          count: groupActivities.length,
+          statistics: {
+            mean: formatPace(mean),
+            median: formatPace(median),
+            stdDev: Math.round(stdDev),
+            meanSeconds: Math.round(mean),
+            medianSeconds: Math.round(median),
+          },
+          exampleRuns, // Only top 3, not all activities
+        };
+      });
+
+      // Sort groups by logical order
+      const groupOrder = groupBy === "runType" 
+        ? ["recovery", "easy", "hard", "long"]
+        : ["short", "medium", "long"];
+      
+      groupStats.sort((a, b) => {
+        const aIndex = groupOrder.indexOf(a.group);
+        const bIndex = groupOrder.indexOf(b.group);
+        return aIndex - bIndex;
+      });
+
+      return {
+        structuredContent: {
+          groups: groupStats,
+          groupBy,
+          totalActivities: activities.length,
+        },
+        content: [
+          {
+            type: "text",
+            text: `Analyzed ${activities.length} activities grouped by ${groupBy}. Found ${groupStats.length} groups: ${groupStats.map(g => `${g.group} (${g.count})`).join(", ")}`,
+          },
+        ],
+        isError: false,
+      };
+    } catch (error) {
+      // Handle 401 Unauthorized errors specifically
+      if (error instanceof UnauthorizedError) {
+        return authErrorResponse("unauthorized");
+      }
+      
+      // Handle 429 Rate Limit errors
+      if (error instanceof RateLimitError) {
+        return rateLimitErrorResponse(
+          error.retryAfter,
+          error.limit,
+          error.usage
+        );
+      }
+      
+      console.error("Error analyzing pace patterns:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error analyzing pace patterns: ${error instanceof Error ? error.message : "Unknown error"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
+// Data Tool: Calculate Pace Distribution (DEPRECATED - Use analyze_pace_patterns widget instead)
 server.registerTool(
   "calculate_pace_distribution",
   {
@@ -558,7 +820,169 @@ EXAMPLE QUERIES:
   },
 );
 
-// Data Tool: Analyze Elevation Impact
+// Integrated Widget: Analyze Elevation Trends
+server.registerWidget(
+  "analyze_elevation_trends",
+  {
+    description: `⚠️ REQUIRES AUTHORIZATION: Analyze how elevation gain impacts running pace. Calculates pace adjustments based on elevation gain and shows the hilliest runs with flat-equivalent paces. This is an INTEGRATED widget (combines data fetching + visualization).
+
+WHEN TO USE (PREFER THIS):
+- Understanding how hills affect performance
+- Comparing runs on different terrain fairly
+- Finding hilliest runs and their adjusted paces
+- Queries like: "How does elevation affect my pace?", "What would my pace be on flat ground?", "Show me my hilliest runs"
+
+WHEN NOT TO USE:
+- Need raw elevation data for custom analysis → use fetch_activities with filters
+- Comparing specific runs → use get_run_comparison
+
+WORKFLOW:
+- Single call fetches activities, calculates elevation impact, and displays results
+- No additional visualization needed (integrated display with top hilly runs)
+
+EXAMPLE QUERIES:
+- "How much does elevation slow me down?"
+- "What's my adjusted pace accounting for hills?"
+- "Show me which runs had the most elevation gain"
+- "Compare my performance on flat vs hilly routes"`,
+  },
+  {
+    description: "Analyze how elevation gain impacts running pace. Fetches activities, calculates pace adjustments based on elevation (using ~12 seconds per 100m rule), and displays summary statistics with the top 5 hilliest runs showing actual vs flat-equivalent pace. Use this to understand terrain impact on performance.",
+    inputSchema: {
+      days: z
+        .number()
+        .optional()
+        .default(30)
+        .describe("Number of days to analyze (default: 30)"),
+      token: z
+        .string()
+        .optional()
+        .describe("Strava access token (optional - OAuth handles authentication automatically)"),
+    },
+  },
+  async ({ days, token }, extra) => {
+    // Try manual token first, then OAuth
+    let auth = token ? { userId: "manual", accessToken: token } : await getAuth(extra);
+    
+    if (!auth) {
+      return authErrorResponse("missing_token");
+    }
+
+    try {
+      // Fetch activities
+      const afterTimestamp = Math.floor(Date.now() / 1000 - days * 24 * 60 * 60);
+      const activities = await fetchRecentActivities(auth.accessToken, afterTimestamp);
+
+      if (activities.length === 0) {
+        return {
+          structuredContent: {
+            summary: {
+              totalActivities: 0,
+              averageElevationGain: 0,
+              averagePaceAdjustment: 0,
+            },
+            topHillyRuns: [],
+          },
+          content: [
+            {
+              type: "text",
+              text: `No running activities found in the last ${days} days.`,
+            },
+          ],
+          isError: false,
+        };
+      }
+
+      // Calculate elevation impact for each activity
+      const SECONDS_PER_100M_ELEVATION = 12;
+
+      const analysisResults = activities.map(activity => {
+        const distanceKm = activity.distance / 1000;
+        const elevationGainM = activity.total_elevation_gain;
+        const actualPaceSecondsPerKm = 1000 / activity.average_speed;
+        
+        const paceAdjustmentSecondsPerKm = distanceKm > 0
+          ? (elevationGainM / 100) * SECONDS_PER_100M_ELEVATION / distanceKm
+          : 0;
+        
+        const adjustedPaceSecondsPerKm = actualPaceSecondsPerKm - paceAdjustmentSecondsPerKm;
+        
+        const formatPace = (seconds: number) => {
+          const minutes = Math.floor(seconds / 60);
+          const secs = Math.round(seconds % 60);
+          return `${minutes}:${secs.toString().padStart(2, "0")}`;
+        };
+        
+        return {
+          id: activity.id,
+          name: activity.name,
+          date: activity.start_date_local.split("T")[0],
+          distance: Math.round(distanceKm * 10) / 10,
+          elevationGain: Math.round(elevationGainM),
+          actualPace: formatPace(actualPaceSecondsPerKm),
+          adjustedPace: formatPace(adjustedPaceSecondsPerKm),
+          paceAdjustment: Math.round(paceAdjustmentSecondsPerKm),
+          elevationPerKm: distanceKm > 0 ? Math.round(elevationGainM / distanceKm) : 0,
+        };
+      });
+
+      // Calculate summary statistics
+      const totalElevationGain = activities.reduce((sum, a) => sum + a.total_elevation_gain, 0);
+      const averageElevationGain = Math.round(totalElevationGain / activities.length);
+      
+      const totalPaceAdjustment = analysisResults.reduce((sum, r) => sum + r.paceAdjustment, 0);
+      const averagePaceAdjustment = Math.round(totalPaceAdjustment / analysisResults.length);
+
+      // Sort by elevation gain and return only top 5 (not all activities)
+      analysisResults.sort((a, b) => b.elevationGain - a.elevationGain);
+      const topHillyRuns = analysisResults.slice(0, 5);
+
+      return {
+        structuredContent: {
+          summary: {
+            totalActivities: activities.length,
+            averageElevationGain,
+            averagePaceAdjustment,
+            adjustmentMethod: `${SECONDS_PER_100M_ELEVATION} seconds per 100m elevation gain`,
+          },
+          topHillyRuns, // Only top 5, not all activities
+        },
+        content: [
+          {
+            type: "text",
+            text: `Analyzed elevation impact for ${activities.length} activities. Average elevation gain: ${averageElevationGain}m, Average pace adjustment: ${averagePaceAdjustment}s/km. Showing top 5 hilliest runs.`,
+          },
+        ],
+        isError: false,
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedError) {
+        return authErrorResponse("unauthorized");
+      }
+      
+      if (error instanceof RateLimitError) {
+        return rateLimitErrorResponse(
+          error.retryAfter,
+          error.limit,
+          error.usage
+        );
+      }
+      
+      console.error("Error analyzing elevation trends:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error analyzing elevation trends: ${error instanceof Error ? error.message : "Unknown error"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  },
+);
+
+// Data Tool: Analyze Elevation Impact (DEPRECATED - Use analyze_elevation_trends widget instead)
 server.registerTool(
   "analyze_elevation_impact",
   {
